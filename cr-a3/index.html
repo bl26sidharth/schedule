@@ -190,6 +190,13 @@ header{padding:2.75rem 1.25rem 1.25rem;position:sticky;top:0;background:linear-g
 .add-trigger-btn{width:100%;padding:11px 14px;background:var(--surface);border:1px dashed var(--border2);border-radius:10px;font-family:inherit;font-size:12px;font-weight:600;color:var(--muted);cursor:pointer;}
 .add-trigger-btn:active{background:var(--surface2);}
 
+.is-cancelled .class-code,
+.is-cancelled .class-full,
+.is-cancelled .class-faculty{text-decoration:line-through;opacity:0.4;}
+.status-tag{display:inline-block;margin-top:7px;padding:2px 8px;border-radius:10px;font-size:9px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;}
+.status-tag.cancelled{background:#b83232;color:#fff;}
+.status-tag.added{background:#2a7a50;color:#fff;}
+
 .slot-anim-0{animation-delay:0.00s}.slot-anim-1{animation-delay:0.04s}.slot-anim-2{animation-delay:0.08s}
 .slot-anim-3{animation-delay:0.12s}.slot-anim-4{animation-delay:0.16s}.slot-anim-5{animation-delay:0.20s}
 .slot-anim-6{animation-delay:0.24s}.slot-anim-7{animation-delay:0.28s}
@@ -255,8 +262,10 @@ header{padding:2.75rem 1.25rem 1.25rem;position:sticky;top:0;background:linear-g
 const SECTION        = 'CR-A3';
 const SECTION_SUFFIX = 'A';
 const CSV_URL        = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQYswdABqsqnLETAh0TKMsRsescez0I_II1SrZw2nyhpGco-7HyeZ5NhsZ7h2lE1GZGaj9lRD2HiTLR/pub?gid=531518019&single=true&output=csv';
+const OVERRIDES_URL  = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQYswdABqsqnLETAh0TKMsRsescez0I_II1SrZw2nyhpGco-7HyeZ5NhsZ7h2lE1GZGaj9lRD2HiTLR/pub?gid=1725216135&single=true&output=csv';
 const CACHE_KEY      = 'pgp-bl07-t2-csv-cache';
 const CACHE_TIME_KEY = 'pgp-bl07-t2-csv-cache-time';
+const OVR_CACHE_KEY  = 'pgp-bl07-t2-ovr-cache';
 const THEME_KEY      = 'pgp-bl07-theme';
 
 // ─────────── COURSES ───────────
@@ -288,6 +297,7 @@ const NATIONAL = {'2026-06-17':'Eid al-Adha (Bakrid)'};
 
 // ─────────── STATE ───────────
 let SCHEDULE=[],MAP={},DATES=[];
+let OVERRIDES={};  // key: "DATE|CODE|SECTION" → 'cancelled'|'added'
 let TERM_S='2026-06-11',TERM_E='2026-07-30';
 let idx=0,currentTab='schedule';
 
@@ -341,6 +351,44 @@ function normaliseCode(raw){
   s=s.replace(/[-\s]+[AB]$/,'');        // remove -A or -B
   s=s.replace(/\s*-\s*/g,'-');          // "CFT -II" → "CFT-II"
   return s.trim()||null;
+}
+
+// Parse Overrides CSV → map keyed by "DATE|CODE|SECTION" → status
+function parseOverridesCSV(rows){
+  const map={};
+  // Find header row
+  let headerIdx=-1,colDate=-1,colCode=-1,colSection=-1,colStatus=-1;
+  for(let i=0;i<Math.min(rows.length,5);i++){
+    const r=(rows[i]||[]).map(c=>(c||'').trim().toLowerCase());
+    if(r.some(c=>c==='date')&&r.some(c=>c==='status')){
+      headerIdx=i;
+      for(let j=0;j<r.length;j++){
+        if(r[j]==='date')    colDate=j;
+        if(r[j]==='code')    colCode=j;
+        if(r[j]==='section') colSection=j;
+        if(r[j]==='status')  colStatus=j;
+      }
+      break;
+    }
+  }
+  if(headerIdx===-1) return map;
+  for(let i=headerIdx+1;i<rows.length;i++){
+    const r=rows[i]; if(!r||!r.length) continue;
+    const date   =(r[colDate]  ||'').trim();
+    const code   =(r[colCode]  ||'').trim().toUpperCase();
+    const section=(r[colSection]||'').trim().toUpperCase();
+    const status =(r[colStatus]||'').trim().toLowerCase();
+    if(!date||!code||!status) continue;
+    if(status!=='cancelled'&&status!=='added') continue;
+    const key=`${date}|${code}|${section}`;
+    map[key]=status;
+  }
+  return map;
+}
+
+function getSlotStatus(date,code,section){
+  if(!code) return null;
+  return OVERRIDES[`${date}|${code}|${section}`]||null;
 }
 
 function parseScheduleCSV(rows){
@@ -463,6 +511,8 @@ function renderScheduleShell(){
         <div class="leg"><div class="leg-dot" style="background:var(--hrm)"></div><span class="leg-text">HRM</span></div>
         <div class="leg"><div class="leg-dot" style="background:var(--mpim)"></div><span class="leg-text">MPIM</span></div>
         <div class="leg"><div class="leg-dot" style="background:var(--bppl)"></div><span class="leg-text">BPPL</span></div>
+        <div class="leg"><div class="leg-dot" style="background:#b83232"></div><span class="leg-text">Cancelled</span></div>
+        <div class="leg"><div class="leg-dot" style="background:#2a7a50"></div><span class="leg-text">Added</span></div>
       </div>
     </div>
     <div id="holidays-view" style="display:none">
@@ -524,12 +574,16 @@ function render(){
       const full=FULL[code]||code;
       const fac=getFaculty(slot.c);
       const nc=getNoteCount(code);
+      const status=getSlotStatus(DATES[idx],code,SECTION);
+      const cancelledCls=status==='cancelled'?'is-cancelled':'';
+      const tag=status==='cancelled'?'<span class="status-tag cancelled">Cancelled</span>':status==='added'?'<span class="status-tag added">Recently Added</span>':'';
       html+=`<div class="slot ${anim}">
         <div class="time-col"><div class="time-start">${t1}</div><div class="time-ampm">${a1}</div><div class="time-end">${t2}</div><div class="time-end-ampm">${a2}</div></div>
-        <div class="class-card" style="background:${col.bg};border-left-color:${col.border};color:${col.color};">
+        <div class="class-card ${cancelledCls}" style="background:${col.bg};border-left-color:${col.border};color:${col.color};">
           <div class="class-code">${code||slot.c}</div>
           <div class="class-full">${full}</div>
           ${fac?`<div class="class-faculty">${fac}</div>`:''}
+          ${tag}
           ${code?`<button class="class-notes-btn" onclick="openNotes('${code}','${DATES[idx]}')" style="color:${col.color};">📝 Notes${nc>0?` <span class="badge"><span class="badge-num">${nc}</span></span>`:''}</button>`:''}
           ${now?'<span class="now-badge">Now</span>':''}
         </div>
@@ -637,20 +691,42 @@ async function tryAllFetches(){
 async function loadCSV(force=false){
   setSyncStatus('loading','Syncing…');
   document.getElementById('cached-banner').style.display='none';
+
+  // Fetch schedule CSV + overrides CSV in parallel
   try{
-    const{text,via}=await tryAllFetches();
+    const [schedResult, ovrResult] = await Promise.allSettled([
+      tryAllFetches(),
+      tryFetchOverrides(),
+    ]);
+
+    // Schedule must succeed
+    if(schedResult.status==='rejected') throw schedResult.reason;
+    const{text,via}=schedResult.value;
     const rows=parseCSV(text);
     const schedule=parseScheduleCSV(rows);
-    if(!schedule.length)throw new Error('No rows parsed');
+    if(!schedule.length) throw new Error('No rows parsed');
+
+    // Overrides are optional — use empty map if failed
+    if(ovrResult.status==='fulfilled' && ovrResult.value){
+      OVERRIDES=ovrResult.value;
+      try{localStorage.setItem(OVR_CACHE_KEY,JSON.stringify(OVERRIDES));}catch(e){}
+    } else {
+      console.warn('Overrides fetch failed, using cached or empty');
+      try{const c=localStorage.getItem(OVR_CACHE_KEY);OVERRIDES=c?JSON.parse(c):{};}catch(e){OVERRIDES={};}
+    }
+
     try{localStorage.setItem(CACHE_KEY,text);localStorage.setItem(CACHE_TIME_KEY,String(Date.now()));}catch(e){}
     SCHEDULE=schedule;MAP={};SCHEDULE.forEach(d=>MAP[d.d]=d.slots);
     DATES=SCHEDULE.map(d=>d.d);computeTermRange();idx=todayIdx();
-    setSyncStatus('ok',via==='direct'?'Live · just synced':`Live · via ${via}`);
+
+    const ovrCount=Object.keys(OVERRIDES).length;
+    setSyncStatus('ok',`Live · synced${ovrCount>0?' · '+ovrCount+' override'+(ovrCount!==1?'s':''):''}${via!=='direct'?' (via '+via+')':''}`);
     renderScheduleShell();
     if(currentTab==='holidays')switchTab('holidays');else render();
     return;
   }catch(err){console.warn('Live fetch failed:',err);}
 
+  // Cache fallback
   try{
     const raw=localStorage.getItem(CACHE_KEY),t=parseInt(localStorage.getItem(CACHE_TIME_KEY)||'0',10);
     if(raw){
@@ -658,6 +734,7 @@ async function loadCSV(force=false){
       if(schedule.length){
         SCHEDULE=schedule;MAP={};SCHEDULE.forEach(d=>MAP[d.d]=d.slots);
         DATES=SCHEDULE.map(d=>d.d);computeTermRange();idx=todayIdx();
+        try{const c=localStorage.getItem(OVR_CACHE_KEY);OVERRIDES=c?JSON.parse(c):{};}catch(e){OVERRIDES={};}
         setSyncStatus('err',`Offline · cached ${fmtAgo(t)}`);
         document.getElementById('cached-banner').style.display='block';
         document.getElementById('cached-banner').textContent=`⚠ Showing cached data from ${fmtAgo(t)}.`;
@@ -670,6 +747,29 @@ async function loadCSV(force=false){
 
   setSyncStatus('err','Sync failed');
   document.getElementById('main-content').innerHTML=`<div class="error-screen"><div class="error-title">Couldn't load schedule</div><div class="error-msg">Could not reach the Google Sheet.</div><button class="retry-btn" onclick="loadCSV(true)">Retry</button></div>`;
+}
+
+// Fetch overrides CSV with proxy fallback, return parsed map
+async function tryFetchOverrides(){
+  const bust='_t='+Date.now();
+  const sep=OVERRIDES_URL.includes('?')?'&':'?';
+  const direct=OVERRIDES_URL+sep+bust;
+  const sources=[
+    direct,
+    'https://api.allorigins.win/raw?url='+encodeURIComponent(direct),
+    'https://corsproxy.io/?'+encodeURIComponent(direct),
+  ];
+  for(const url of sources){
+    try{
+      const res=await fetch(url,{cache:'no-store'});
+      if(!res.ok) continue;
+      const text=await res.text();
+      if(!text||!text.includes(',')) continue;
+      const rows=parseCSV(text);
+      return parseOverridesCSV(rows);
+    }catch(e){ continue; }
+  }
+  throw new Error('Overrides fetch failed');
 }
 
 // ─────────── NOTES ───────────
