@@ -1,0 +1,770 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="BL07 T3">
+<meta name="theme-color" content="#f5f5f0" id="meta-theme">
+<title>PGP BL07 · Term III</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+body{background:#f5f5f0;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased;min-height:100vh;}
+@keyframes pulse{0%{opacity:1}50%{opacity:.35}100%{opacity:1}}
+@keyframes slideIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+@keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+button{font-family:inherit;cursor:pointer;}
+textarea{font-family:inherit;}
+#app{max-width:430px;margin:0 auto;min-height:100vh;display:flex;flex-direction:column;position:relative;}
+
+/* HEADER */
+.hdr{padding:18px 18px 8px;display:flex;align-items:center;justify-content:space-between;}
+.hdr-left{display:flex;flex-direction:column;gap:2px;}
+.hdr-tag{font-size:11px;letter-spacing:.06em;text-transform:uppercase;font-weight:600;}
+.hdr-section{font-size:20px;font-weight:700;}
+.theme-btn{width:38px;height:38px;border-radius:12px;border-width:1px;border-style:solid;display:flex;align-items:center;justify-content:center;}
+
+/* SYNC ROW */
+.sync-row{padding:2px 18px 12px;display:flex;align-items:center;gap:8px;}
+.sync-text{font-size:12px;flex:1;}
+.refresh-btn{border:none;background:none;font-size:12px;font-weight:600;padding:4px 0;}
+
+/* DATE NAV */
+.date-nav{padding:0 18px 14px;}
+.date-nav-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
+.date-nav-arrow{border:none;background:none;font-size:22px;padding:4px 8px;}
+.today-btn{border-width:1px;border-style:solid;font-size:12px;font-weight:600;padding:6px 14px;border-radius:20px;}
+.date-strip{display:flex;gap:6px;justify-content:space-between;}
+.day-chip{flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;padding:8px 2px;border-radius:14px;border:none;}
+.day-chip-dow{font-size:10px;font-weight:600;letter-spacing:.04em;opacity:.7;}
+.day-chip-num{font-size:15px;font-weight:700;width:26px;height:26px;display:flex;align-items:center;justify-content:center;border-radius:50%;}
+
+/* DATE LABEL */
+.date-label{padding:2px 18px 6px;font-size:15px;font-weight:700;}
+
+/* AGENDA */
+.agenda{flex:1;padding:4px 18px 100px;display:flex;flex-direction:column;gap:10px;}
+.agenda-card{display:flex;gap:12px;border-radius:14px;padding:12px 14px;animation:slideIn .25s ease;}
+.agenda-time{width:66px;flex:none;display:flex;flex-direction:column;font-size:12px;font-weight:600;padding-top:2px;}
+.agenda-time-end{opacity:.5;font-weight:500;}
+.agenda-bar{width:3px;border-radius:2px;flex:none;}
+.agenda-body{flex:1;display:flex;flex-direction:column;gap:2px;min-width:0;}
+.agenda-name-row{display:flex;align-items:center;gap:8px;}
+.agenda-name{font-size:15px;font-weight:700;}
+.now-badge{font-size:9px;font-weight:700;letter-spacing:.05em;color:#fff;padding:2px 6px;border-radius:6px;animation:pulse 1.6s infinite;}
+.agenda-sub{font-size:12px;}
+.no-class{text-align:center;padding:60px 20px;font-size:14px;}
+
+/* SECTION VIEWS */
+.view-pad{flex:1;padding:4px 18px 100px;display:flex;flex-direction:column;gap:10px;}
+.view-title{font-size:15px;font-weight:700;margin-bottom:4px;}
+
+/* NOTES */
+.notes-course-btn{display:flex;align-items:center;gap:10px;border:none;border-radius:14px;padding:12px 14px;text-align:left;}
+.notes-course-dot{width:8px;height:8px;border-radius:50%;flex:none;}
+.notes-course-name{font-size:14px;font-weight:700;}
+.notes-course-count{font-size:11px;}
+.notes-back{border:none;background:none;font-size:14px;font-weight:600;padding:4px 0;}
+.notes-course-title{font-size:16px;font-weight:700;}
+.notes-textarea{width:100%;box-sizing:border-box;min-height:70px;border-radius:12px;border-width:1px;border-style:solid;padding:10px 12px;font-size:13px;resize:vertical;}
+.notes-save-btn{border:none;color:#fff;font-size:13px;font-weight:600;padding:8px 16px;border-radius:10px;align-self:flex-start;}
+.note-entry{border-radius:12px;padding:10px 12px;display:flex;flex-direction:column;gap:4px;}
+.note-entry-head{display:flex;justify-content:space-between;align-items:center;}
+.note-entry-meta{font-size:11px;font-weight:600;}
+.note-del-btn{border:none;background:none;font-size:12px;}
+.note-entry-text{font-size:13px;line-height:1.4;}
+
+/* HOLIDAYS */
+.holiday-item{display:flex;align-items:center;gap:10px;border-radius:14px;padding:12px 14px;}
+.holiday-dot{width:8px;height:8px;border-radius:50%;flex:none;}
+.holiday-name{font-size:13px;font-weight:600;}
+
+/* EXAMS */
+.exam-card{border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:6px;}
+.exam-dates{font-size:18px;font-weight:700;}
+.exam-note{font-size:13px;}
+
+/* MORE */
+.more-btn{display:flex;align-items:center;justify-content:space-between;border:none;border-radius:14px;padding:14px;text-align:left;}
+.more-btn-label{font-size:14px;font-weight:600;}
+.legend-title{font-size:13px;font-weight:700;margin-top:10px;}
+.legend-item{display:flex;align-items:center;gap:10px;border-radius:12px;padding:10px 14px;}
+.legend-dot{width:10px;height:10px;border-radius:3px;flex:none;}
+.legend-name{font-size:12px;}
+.more-info{font-size:11px;margin-top:8px;}
+
+/* BOTTOM NAV */
+.nav{position:fixed;left:50%;transform:translateX(-50%);bottom:0;width:100%;max-width:430px;border-top-width:1px;border-top-style:solid;display:flex;padding:8px 8px calc(8px + env(safe-area-inset-bottom));}
+.nav-btn{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;border:none;background:none;padding:6px 2px;}
+.nav-label{font-size:10px;font-weight:600;}
+
+/* PICKER OVERLAY */
+.picker{position:fixed;inset:0;max-width:430px;margin:0 auto;z-index:50;display:flex;flex-direction:column;animation:fadeIn .2s ease;}
+.picker-hdr{padding:20px 18px 8px;display:flex;align-items:center;justify-content:space-between;}
+.picker-title{font-size:18px;font-weight:700;}
+.picker-close{border:none;background:none;font-size:20px;}
+.picker-sub{padding:0 18px 8px;font-size:12px;}
+.picker-scroll{flex:1;overflow-y:auto;padding:8px 18px 90px;display:flex;flex-direction:column;gap:8px;}
+.picker-section-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;margin-top:6px;}
+.picker-sections{display:flex;gap:8px;}
+.picker-sec-btn{flex:1;border-width:2px;border-style:solid;font-size:13px;font-weight:700;padding:12px;border-radius:12px;}
+.picker-core-item{display:flex;align-items:center;gap:10px;border-radius:12px;padding:12px 14px;opacity:.7;}
+.picker-core-dot{width:10px;height:10px;border-radius:3px;flex:none;}
+.picker-core-name{font-size:13px;font-weight:700;}
+.picker-core-prof{font-size:11px;}
+.picker-elec-btn{display:flex;align-items:center;gap:10px;border-width:2px;border-style:solid;border-radius:12px;padding:12px 14px;text-align:left;}
+.picker-check{width:20px;height:20px;border-radius:6px;border-width:2px;border-style:solid;flex:none;display:flex;align-items:center;justify-content:center;color:#fff;font-size:12px;font-weight:700;}
+.picker-elec-name{font-size:13px;font-weight:700;}
+.picker-elec-sub{font-size:11px;}
+.picker-footer{position:absolute;left:0;right:0;bottom:0;padding:14px 18px calc(14px + env(safe-area-inset-bottom));border-top-width:1px;border-top-style:solid;}
+.picker-done{width:100%;border:none;color:#fff;font-size:15px;font-weight:700;padding:14px;border-radius:14px;}
+</style>
+</head>
+<body>
+<div id="app"></div>
+
+<script>
+// ─────────── CONSTANTS ───────────
+const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+const DOW = ['SUN','MON','TUE','WED','THU','FRI','SAT'];
+
+const COURSES = {
+  SM:   { name:'Strategic Management', prof:'Prof. Anubha Shekhar Sinha & Prof. Rajesh Upadhyayula', color:'#6366f1', core:true,  credit:3 },
+  DBST: { name:'Digital Business Strategy & Transformation', prof:'Prof. Aishwarya Ramasundaram',    color:'#0891b2', core:true,  credit:3 },
+  CV:   { name:'Corporate Valuation',    prof:'Prof. Abhilash S Nair',       color:'#c026d3', core:false, credit:3 },
+  AIB:  { name:'AI for Business',        prof:'Prof. MP Sebastian',           color:'#16a34a', core:false, credit:3 },
+  OS:   { name:'Operations Strategy',    prof:'Prof. G Anand',                color:'#ea580c', core:false, credit:3 },
+  PM:   { name:'Project Management',     prof:'Prof. Rupesh Kumar Pati',      color:'#2563eb', core:false, credit:3 },
+  POM:  { name:'Product Management',     prof:'Prof. Sreejesh S',             color:'#7c3aed', core:false, credit:3 },
+  CB:   { name:'Consumer Behaviour',     prof:'Prof. M Geetha',              color:'#db2777', core:false, credit:3 },
+  SBM:  { name:'Strategic Brand Management', prof:'Prof. Gladys S',          color:'#ca8a04', core:false, credit:3 },
+  GITA: { name:'Navigating Work & Workplaces: Bhagavad Gita', prof:'Prof. Surya Prakash Pati', color:'#059669', core:false, credit:2 },
+  MAAS: { name:'Marketing Automation & Agentic Systems', prof:'Prof. Dharun Kasilingam & Prof. Omkumar Krishnan', color:'#dc2626', core:false, credit:2 },
+  ACC:  { name:'Advanced Corporate Communication', prof:'Prof. Deepa Sethi',  color:'#0d9488', core:false, credit:2 },
+};
+
+const SCHEDULE_CSV   = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQN_WcTSDKFnh0M5BS_oBnNXCr36i7VSsvOOrTsiGI1KVpHtrsiJnrGFVq_KHeuanhEsnYIVl1h4WKd/pub?gid=0&single=true&output=csv';
+const OVERRIDES_CSV  = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQN_WcTSDKFnh0M5BS_oBnNXCr36i7VSsvOOrTsiGI1KVpHtrsiJnrGFVq_KHeuanhEsnYIVl1h4WKd/pub?gid=940714239&single=true&output=csv';
+const PROXIES = [
+  u => 'https://api.allorigins.win/raw?url=' + encodeURIComponent(u),
+  u => 'https://corsproxy.io/?' + encodeURIComponent(u),
+  u => 'https://thingproxy.freeboard.io/fetch/' + u,
+];
+const CACHE_KEY  = 'pgp-bl07-t3-csv-cache';
+const OVR_CACHE_KEY = 'pgp-bl07-t3-ovr-cache';
+const THEME_KEY  = 'pgp-bl07-theme';
+const SEC_KEY    = 'pgp-bl07-t3-section';
+
+// ─────────── STATE ───────────
+const S = {
+  theme:        localStorage.getItem(THEME_KEY) || (window.matchMedia('(prefers-color-scheme:dark)').matches ? 'dark' : 'light'),
+  section:      localStorage.getItem(SEC_KEY) || null,
+  electives:    [],
+  draftSection: localStorage.getItem(SEC_KEY) || 'CR-A3',
+  draftElectives: [],
+  pickerOpen:   false,
+  view:         'timetable',
+  selectedDate: iso(new Date()),
+  rows:         [],
+  loaded:       false,
+  syncedAt:     null,
+  notesOpenCourse: null,
+  noteDraft:    '',
+  notes:        {},
+  tick:         0,
+  overrides:    {}, // key: "DATE|CODE|SECTION" → 'cancelled'|'added'
+};
+
+// ─────────── HELPERS ───────────
+function iso(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+
+function parseCSV(text){
+  const rows=[]; let i=0,field='',row=[],q=false;
+  while(i<text.length){
+    const c=text[i];
+    if(q){ if(c==='"'){ if(text[i+1]==='"'){field+='"';i++;} else q=false; } else field+=c; }
+    else { if(c==='"') q=true; else if(c===','){row.push(field);field='';} else if(c==='\n'||c==='\r'){ if(c==='\r'&&text[i+1]==='\n')i++; row.push(field);rows.push(row);row=[];field=''; } else field+=c; }
+    i++;
+  }
+  if(field.length||row.length){row.push(field);rows.push(row);}
+  return rows;
+}
+
+function parseDate(str){
+  const parts=str.split(',');
+  if(parts.length<3) return null;
+  const dm=parts[1].trim().split(' ');
+  const day=parseInt(dm[0],10), monthIdx=MONTHS.indexOf(dm[1]), year=parseInt(parts[2].trim(),10);
+  if(monthIdx<0||isNaN(day)||isNaN(year)) return null;
+  return new Date(year,monthIdx,day);
+}
+
+function parseTimePart(p){
+  p=p.trim(); const dot=p.indexOf('.');
+  if(dot<0) return {h:parseInt(p,10)||0,m:0};
+  return {h:parseInt(p.slice(0,dot),10)||0, m:parseInt(p.slice(dot+1),10)||0};
+}
+
+function fmt12(t){
+  let h=t.h%12; if(h===0)h=12;
+  const ap=t.h<12?'AM':'PM';
+  return h+':'+String(t.m).padStart(2,'0')+' '+ap;
+}
+
+function codeBase(v){ return v.split('-')[0].trim().toUpperCase(); }
+
+function getAvailableDates(){
+  return [...new Set(S.rows.map(r=>r.dateIso))].sort();
+}
+
+function fmtAgo(ms){
+  const s=Math.floor((Date.now()-ms)/1000);
+  if(s<60) return 'just now';
+  if(s<3600) return Math.floor(s/60)+'m ago';
+  return Math.floor(s/3600)+'h ago';
+}
+
+// ─────────── THEME ───────────
+function theme(){
+  const dark = S.theme === 'dark';
+  return {
+    dark,
+    bg:       dark ? '#16181c' : '#f5f5f0',
+    card:     dark ? '#212328' : '#ffffff',
+    text:     dark ? '#f2f2f0' : '#1a1a1a',
+    subtle:   dark ? '#8b8f97' : '#6b6b66',
+    border:   dark ? '#2c2e33' : '#e5e3dc',
+    accent:   dark ? '#34d399' : '#127a54',
+    nav:      dark ? '#1b1d22' : '#ffffff',
+    lunchBg:  dark ? '#26241f' : '#efeae0',
+  };
+}
+
+// ─────────── NOTES ───────────
+function loadNotes(){
+  const sec = S.section || 'CR-A3';
+  const notes = {};
+  Object.keys(COURSES).forEach(code => {
+    try { notes[code] = JSON.parse(localStorage.getItem('pgp-bl07-t3-notes-'+sec+'-'+code)||'[]'); }
+    catch(e){ notes[code]=[]; }
+  });
+  S.notes = notes;
+}
+
+function saveNotesFor(code, list){
+  const sec = S.section || 'CR-A3';
+  localStorage.setItem('pgp-bl07-t3-notes-'+sec+'-'+code, JSON.stringify(list));
+  S.notes = {...S.notes, [code]: list};
+}
+
+// ─────────── OVERRIDES PARSE ───────────
+function parseOverrides(text){
+  const map={};
+  const rows=parseCSV(text);
+  let hi=-1,cDate=-1,cCode=-1,cSec=-1,cStat=-1;
+  for(let i=0;i<Math.min(rows.length,5);i++){
+    const r=(rows[i]||[]).map(c=>(c||'').trim().toLowerCase());
+    if(r.includes('date')&&r.includes('status')){
+      hi=i; cDate=r.indexOf('date'); cCode=r.indexOf('code');
+      cSec=r.indexOf('section'); cStat=r.indexOf('status'); break;
+    }
+  }
+  if(hi===-1) return map;
+  for(let i=hi+1;i<rows.length;i++){
+    const r=rows[i]; if(!r||!r.length) continue;
+    const date=(r[cDate]||'').trim();
+    const code=(r[cCode]||'').trim().toUpperCase();
+    const sec =(r[cSec] ||'').trim().toUpperCase();
+    const stat=(r[cStat]||'').trim().toLowerCase();
+    if(!date||!code||!stat) continue;
+    if(stat!=='cancelled'&&stat!=='added') continue;
+    map[`${date}|${code}|${sec}`]=stat;
+  }
+  return map;
+}
+
+async function fetchWithProxies(url){
+  try { const r=await fetch(url+'&_t='+Date.now(),{cache:'no-store'}); if(r.ok){const t=await r.text(); if(t&&t.includes(',')) return t;} } catch(e){}
+  for(const pf of PROXIES){
+    try { const r=await fetch(pf(url),{cache:'no-store'}); if(r.ok){const t=await r.text(); if(t&&t.includes(',')) return t;} } catch(e){}
+  }
+  return null;
+}
+
+// ─────────── CSV FETCH ───────────
+async function fetchSchedule(){
+  // Fetch schedule + overrides in parallel
+  const [schedText, ovrText] = await Promise.all([
+    fetchWithProxies(SCHEDULE_CSV),
+    OVERRIDES_CSV !== 'PASTE_T3_OVERRIDES_CSV_URL_HERE' ? fetchWithProxies(OVERRIDES_CSV) : Promise.resolve(null),
+  ]);
+
+  if(schedText){
+    localStorage.setItem(CACHE_KEY, JSON.stringify({text:schedText, ts:Date.now()}));
+    applyCSV(schedText);
+    S.syncedAt = Date.now();
+  } else {
+    try {
+      const cached = JSON.parse(localStorage.getItem(CACHE_KEY)||'null');
+      if(cached){ applyCSV(cached.text); S.syncedAt = cached.ts; }
+    } catch(e){}
+  }
+
+  if(ovrText){
+    const map = parseOverrides(ovrText);
+    localStorage.setItem(OVR_CACHE_KEY, JSON.stringify(map));
+    S.overrides = map;
+  } else {
+    try { S.overrides = JSON.parse(localStorage.getItem(OVR_CACHE_KEY)||'{}'); } catch(e){ S.overrides={}; }
+  }
+
+  S.loaded = true;
+  render();
+}
+
+function applyCSV(text){
+  const raw = parseCSV(text);
+  const headerIdx = raw.findIndex(r=>(r[0]||'').trim()==='Date');
+  if(headerIdx<0) return;
+  const rows=[];
+  for(let i=headerIdx+1;i<raw.length;i++){
+    const r=raw[i]; if(!r[0]) continue;
+    const d=parseDate(r[0]); if(!d) continue;
+    rows.push({dateObj:d, dateIso:iso(d), time:(r[1]||'').trim(), a3:(r[2]||'').trim(), a4:(r[3]||'').trim()});
+  }
+  S.rows = rows;
+}
+
+// ─────────── AGENDA BUILD ───────────
+function buildAgenda(dateIso){
+  const items=[];
+  const dayRows = S.rows.filter(r=>r.dateIso===dateIso);
+  const section = S.section || 'CR-A3';
+  dayRows.forEach(r=>{
+    const timeParts=r.time.split('-');
+    const start=parseTimePart(timeParts[0]||'0');
+    const end=parseTimePart(timeParts[1]||'0');
+    const now=new Date();
+    const nowMin=now.getHours()*60+now.getMinutes();
+    const isToday=dateIso===iso(now);
+    const isNow=isToday&&nowMin>=start.h*60+start.m&&nowMin<end.h*60+end.m;
+
+    if(r.a3.toLowerCase().includes('lunch')||r.a4.toLowerCase().includes('lunch')){
+      items.push({start:fmt12(start),end:fmt12(end),name:'Lunch Break',room:'',prof:'',color:'#a8a29e',isNow,isLunch:true});
+      return;
+    }
+    const a3Base=r.a3?codeBase(r.a3):'';
+    const a4Base=r.a4?codeBase(r.a4):'';
+    const isCoreSlot=(COURSES[a3Base]&&COURSES[a3Base].core)||(COURSES[a4Base]&&COURSES[a4Base].core);
+    if(isCoreSlot){
+      const val=section==='CR-A3'?r.a3:r.a4;
+      if(val){
+        const base=codeBase(val);
+        const course=COURSES[base];
+        if(course){
+          const suffix=val.includes('-')?' (Batch '+val.split('-')[1]+')':'';
+          const status=S.overrides[`${dateIso}|${base}|${section}`]||null;
+          items.push({start:fmt12(start),end:fmt12(end),name:course.name+suffix,room:section,prof:course.prof,color:course.color,isNow,isLunch:false,status});
+        }
+      }
+    } else {
+      [{val:r.a3,room:'Room A3',sec:'CR-A3'},{val:r.a4,room:'Room A4',sec:'CR-A4'}].forEach(slot=>{
+        if(!slot.val) return;
+        const base=codeBase(slot.val);
+        const course=COURSES[base];
+        if(course&&!course.core&&S.electives.includes(base)){
+          const status=S.overrides[`${dateIso}|${base}|${slot.sec}`]||null;
+          items.push({start:fmt12(start),end:fmt12(end),name:course.name,room:slot.room,prof:course.prof,color:course.color,isNow,isLunch:false,status});
+        }
+      });
+    }
+  });
+  return items;
+}
+
+// ─────────── HOLIDAYS ───────────
+function buildHolidays(){
+  const EXPLICIT={'2026-08-15':'Independence Day','2026-08-26':'Onam'};
+  const byDate={};
+  S.rows.forEach(r=>{(byDate[r.dateIso]=byDate[r.dateIso]||[]).push(r);});
+  const allDates=new Set([...Object.keys(byDate),...Object.keys(EXPLICIT)]);
+  const entries=[];
+  allDates.forEach(dIso=>{
+    const d=new Date(dIso);
+    const isSunday=d.getDay()===0;
+    const rows=byDate[dIso]||[];
+    const anyClass=rows.some(r=>(r.a3&&!r.a3.toLowerCase().includes('lunch'))||(r.a4&&!r.a4.toLowerCase().includes('lunch')));
+    const reason=EXPLICIT[dIso]||(isSunday?'Sunday':(rows.length&&!anyClass?'Holiday':null));
+    if(reason) entries.push({dIso,d,reason});
+  });
+  entries.sort((a,b)=>a.d-b.d);
+  return entries.map(e=>e.d.toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'})+' \u2014 '+e.reason);
+}
+
+// ─────────── DATE STRIP ───────────
+function buildDateStrip(){
+  const dates=getAvailableDates();
+  if(!dates.length) return [];
+  const todayIso=iso(new Date());
+  let centerIdx=dates.indexOf(S.selectedDate);
+  if(centerIdx<0) centerIdx=Math.max(0,dates.findIndex(d=>d>=S.selectedDate));
+  let start=Math.max(0,centerIdx-3);
+  let end=Math.min(dates.length,start+7);
+  start=Math.max(0,end-7);
+  return dates.slice(start,end).map(dIso=>{
+    const d=new Date(dIso);
+    const isSel=dIso===S.selectedDate;
+    const isToday=dIso===todayIso;
+    const T=theme();
+    return {dIso, dow:DOW[d.getDay()], num:d.getDate(), isSel, isToday,
+      numBg: isSel?T.accent:(isToday?(T.dark?'#2c2e33':'#e9e7df'):'transparent'),
+      fg: isSel?'#ffffff':T.text};
+  });
+}
+
+// ─────────── SVG ICONS ───────────
+function svgIcon(key, color){
+  const s=`stroke="${color}" stroke-width="1.8" stroke-linecap="round"`;
+  const icons={
+    timetable:`<svg width="20" height="20" viewBox="0 0 24 24" fill="none"><rect x="3" y="5" width="18" height="16" rx="3" stroke="${color}" stroke-width="1.8"/><path d="M3 9h18M8 3v4M16 3v4" ${s}/></svg>`,
+    notes:`<svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M5 4h11l3 3v13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1z" stroke="${color}" stroke-width="1.8"/><path d="M8 10h8M8 14h5" ${s}/></svg>`,
+    holidays:`<svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M5 4v16M5 4h11l-2 4 2 4H5" stroke="${color}" stroke-width="1.8" stroke-linejoin="round"/></svg>`,
+    exams:`<svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M6 3h9l4 4v14a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z" stroke="${color}" stroke-width="1.8" stroke-linejoin="round"/><path d="M8 12l2.5 2.5L16 9" ${s} stroke-linejoin="round"/></svg>`,
+    more:`<svg width="20" height="20" viewBox="0 0 24 24" fill="none"><circle cx="5" cy="12" r="1.6" fill="${color}"/><circle cx="12" cy="12" r="1.6" fill="${color}"/><circle cx="19" cy="12" r="1.6" fill="${color}"/></svg>`,
+    sun:`<svg width="18" height="18" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="5" stroke="${color}" stroke-width="1.8"/><path d="M12 1v3M12 20v3M23 12h-3M4 12H1M19.07 4.93l-2.12 2.12M7.05 16.95l-2.12 2.12M19.07 19.07l-2.12-2.12M7.05 7.05 4.93 4.93" stroke="${color}" stroke-width="1.8" stroke-linecap="round"/></svg>`,
+    moon:`<svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M21 12.6A9 9 0 1 1 11.4 3 7 7 0 0 0 21 12.6z" stroke="${color}" stroke-width="1.8" stroke-linejoin="round"/></svg>`,
+  };
+  return icons[key]||'';
+}
+
+// ─────────── RENDER ───────────
+function render(){
+  const T=theme();
+  document.body.style.background=T.bg;
+  document.getElementById('meta-theme').setAttribute('content',T.dark?'#16181c':'#f5f5f0');
+
+  const section = S.section || 'CR-A3';
+  const syncText = S.syncedAt ? 'Synced '+fmtAgo(S.syncedAt) : (S.loaded?'Synced':'Syncing\u2026');
+  const dates = getAvailableDates();
+  const strip = buildDateStrip();
+  const agenda = buildAgenda(S.selectedDate);
+  const holidays = buildHolidays();
+  const selDate = new Date(S.selectedDate+'T00:00:00');
+  const selLabel = selDate.toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'});
+  const notesCourses = ['SM','DBST',...S.electives].filter(c=>COURSES[c]);
+  const legendCourses = notesCourses;
+
+  let html = `
+  <div id="app-inner" style="max-width:430px;margin:0 auto;min-height:100vh;background:${T.bg};color:${T.text};display:flex;flex-direction:column;position:relative;">
+
+    <!-- HEADER -->
+    <div class="hdr">
+      <div class="hdr-left">
+        <div class="hdr-tag" style="color:${T.subtle}">PGP BL07 &middot; Term III</div>
+        <div class="hdr-section">${section}</div>
+      </div>
+      <button class="theme-btn" onclick="toggleTheme()" style="border-color:${T.border};background:${T.card};color:${T.text};">${svgIcon(T.dark?'sun':'moon',T.text)}</button>
+    </div>
+
+    <!-- SYNC ROW -->
+    <div class="sync-row">
+      <div class="sync-text" style="color:${T.subtle}">${syncText}</div>
+      <button class="refresh-btn" onclick="refreshData()" style="color:${T.accent}">Refresh</button>
+    </div>`;
+
+  // ── TIMETABLE VIEW ──
+  if(S.view==='timetable'){
+    html += `
+    <div class="date-nav">
+      <div class="date-nav-row">
+        <button class="date-nav-arrow" onclick="shiftDay(-1)" style="color:${T.subtle}">&#8249;</button>
+        <button class="today-btn" onclick="goToday()" style="border-color:${T.border};background:${T.card};color:${T.text};">Today</button>
+        <button class="date-nav-arrow" onclick="shiftDay(1)" style="color:${T.subtle}">&#8250;</button>
+      </div>
+      <div class="date-strip">`;
+    strip.forEach(d=>{
+      html+=`<button class="day-chip" onclick="selectDate('${d.dIso}')" style="background:${d.isSel?T.accent+'22':'transparent'};color:${d.fg};">
+        <span class="day-chip-dow">${d.dow}</span>
+        <span class="day-chip-num" style="background:${d.numBg};color:${d.isSel?'#fff':d.isToday?T.text:T.text};">${d.num}</span>
+      </button>`;
+    });
+    html+=`</div></div>
+    <div class="date-label" style="color:${T.text}">${selLabel}</div>
+    <div class="agenda">`;
+    if(agenda.length===0){
+      html+=`<div class="no-class" style="color:${T.subtle}">No classes today. Enjoy the day off.</div>`;
+    } else {
+      agenda.forEach(item=>{
+        const isCancelled = item.status==='cancelled';
+        const isAdded     = item.status==='added';
+        const strikeStyle = isCancelled ? 'opacity:0.45;' : '';
+        const statusTag   = isCancelled
+          ? `<span style="display:inline-block;margin-top:4px;padding:2px 7px;border-radius:8px;font-size:9px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;background:#b83232;color:#fff;">Cancelled</span>`
+          : isAdded
+          ? `<span style="display:inline-block;margin-top:4px;padding:2px 7px;border-radius:8px;font-size:9px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;background:#15803d;color:#fff;">Recently Added</span>`
+          : '';
+        html+=`<div class="agenda-card" style="background:${item.isLunch?T.lunchBg:T.card};${isCancelled?'opacity:0.7;':''}">
+          <div class="agenda-time" style="color:${T.subtle}">
+            <span>${item.start}</span>
+            <span class="agenda-time-end">${item.end}</span>
+          </div>
+          <div class="agenda-bar" style="background:${isCancelled?'#b83232':isAdded?'#15803d':item.color}"></div>
+          <div class="agenda-body">
+            <div class="agenda-name-row">
+              <span class="agenda-name" style="color:${T.text};${isCancelled?'text-decoration:line-through;':''}">` + item.name + `</span>
+              ${item.isNow&&!isCancelled?`<span class="now-badge" style="background:${T.accent}">NOW</span>`:''}
+            </div>
+            ${item.room?`<div class="agenda-sub" style="color:${T.subtle};${strikeStyle}">${item.room}</div>`:''}
+            ${item.prof?`<div class="agenda-sub" style="color:${T.subtle};${strikeStyle}">${item.prof}</div>`:''}
+            ${statusTag}
+          </div>
+        </div>`;
+      });
+    }
+    html+=`</div>`;
+  }
+
+  // ── NOTES VIEW ──
+  else if(S.view==='notes'){
+    html+=`<div class="view-pad">`;
+    if(!S.notesOpenCourse){
+      html+=`<div class="view-title" style="color:${T.text}">Session notes</div>`;
+      notesCourses.forEach(code=>{
+        const course=COURSES[code];
+        const count=(S.notes[code]||[]).length;
+        html+=`<button class="notes-course-btn" onclick="openCourseNotes('${code}')" style="background:${T.card};width:100%;">
+          <div class="notes-course-dot" style="background:${course.color}"></div>
+          <div style="flex:1;min-width:0;">
+            <div class="notes-course-name" style="color:${T.text}">${course.name}</div>
+            <div class="notes-course-count" style="color:${T.subtle}">${count} note${count===1?'':'s'}</div>
+          </div>
+          <span style="color:${T.subtle}">&#8250;</span>
+        </button>`;
+      });
+    } else {
+      const code=S.notesOpenCourse;
+      const course=COURSES[code];
+      const entries=S.notes[code]||[];
+      html+=`<div>
+        <button class="notes-back" onclick="closeCourseNotes()" style="color:${T.accent}">&#8249; Back</button>
+      </div>
+      <div class="notes-course-title" style="color:${T.text}">${course.name}</div>
+      <textarea class="notes-textarea" id="note-draft" placeholder="Write a note for the next session..." style="border-color:${T.border};background:${T.card};color:${T.text};">${escHtml(S.noteDraft)}</textarea>
+      <button class="notes-save-btn" onclick="addNote()" style="background:${T.accent}">Save note</button>`;
+      entries.forEach(n=>{
+        html+=`<div class="note-entry" style="background:${T.card}">
+          <div class="note-entry-head">
+            <span class="note-entry-meta" style="color:${T.subtle}">Session ${n.sessionNum} &middot; ${n.date}</span>
+            <button class="note-del-btn" onclick="removeNote('${code}',${n.id})" style="color:${T.subtle}">Delete</button>
+          </div>
+          <div class="note-entry-text" style="color:${T.text}">${escHtml(n.text)}</div>
+        </div>`;
+      });
+    }
+    html+=`</div>`;
+  }
+
+  // ── HOLIDAYS VIEW ──
+  else if(S.view==='holidays'){
+    html+=`<div class="view-pad">
+      <div class="view-title" style="color:${T.text}">Holidays this term</div>`;
+    holidays.forEach(label=>{
+      html+=`<div class="holiday-item" style="background:${T.card}">
+        <div class="holiday-dot" style="background:${T.accent}"></div>
+        <div class="holiday-name" style="color:${T.text}">${label}</div>
+      </div>`;
+    });
+    html+=`</div>`;
+  }
+
+  // ── EXAMS VIEW ──
+  else if(S.view==='exams'){
+    html+=`<div class="view-pad">
+      <div class="view-title" style="color:${T.text}">End-Term Exams</div>
+      <div class="exam-card" style="background:${T.card}">
+        <div class="exam-dates" style="color:${T.text}">Sep 27 &ndash; Oct 1, 2026</div>
+        <div class="exam-note" style="color:${T.subtle}">Detailed exam schedule will appear here once the end-term timetable is published.</div>
+      </div>
+    </div>`;
+  }
+
+  // ── MORE VIEW ──
+  else if(S.view==='more'){
+    const electivesText = S.electives.length ? S.electives.map(c=>COURSES[c]?COURSES[c].name:c).join(', ') : 'No electives chosen yet';
+    html+=`<div class="view-pad">
+      <div class="view-title" style="color:${T.text}">More</div>
+      <button class="more-btn" onclick="openPicker()" style="background:${T.card};color:${T.text};width:100%;">
+        <span class="more-btn-label">Change electives / section</span>
+        <span style="color:${T.subtle}">&#8250;</span>
+      </button>
+      <button class="more-btn" onclick="toggleTheme()" style="background:${T.card};color:${T.text};width:100%;">
+        <span class="more-btn-label">${T.dark?'Switch to light mode':'Switch to dark mode'}</span>
+        ${svgIcon(T.dark?'sun':'moon',T.subtle)}
+      </button>
+      <div class="legend-title" style="color:${T.text}">Legend</div>`;
+    legendCourses.forEach(code=>{
+      if(!COURSES[code]) return;
+      html+=`<div class="legend-item" style="background:${T.card}">
+        <div class="legend-dot" style="background:${COURSES[code].color}"></div>
+        <div class="legend-name" style="color:${T.text}">${COURSES[code].name}</div>
+      </div>`;
+    });
+    html+=`<div class="more-info" style="color:${T.subtle}">${section} &middot; ${electivesText}</div>
+    </div>`;
+  }
+
+  // ── BOTTOM NAV ──
+  const navDefs=[
+    {key:'timetable',label:'Timetable'},
+    {key:'notes',label:'Notes'},
+    {key:'holidays',label:'Holidays'},
+    {key:'exams',label:'Exams'},
+    {key:'more',label:'More'},
+  ];
+  html+=`<div class="nav" style="background:${T.nav};border-top-color:${T.border};">`;
+  navDefs.forEach(n=>{
+    const active=S.view===n.key;
+    const c=active?T.accent:T.subtle;
+    html+=`<button class="nav-btn" onclick="setView('${n.key}')">
+      ${svgIcon(n.key,c)}
+      <span class="nav-label" style="color:${c}">${n.label}</span>
+    </button>`;
+  });
+  html+=`</div>`;
+
+  // ── PICKER OVERLAY ──
+  if(S.pickerOpen){
+    const elecCodes=Object.keys(COURSES).filter(c=>!COURSES[c].core);
+    html+=`<div class="picker" style="background:${T.bg};">
+      <div class="picker-hdr">
+        <div class="picker-title" style="color:${T.text}">Choose your electives</div>
+        ${S.electives.length>0?`<button class="picker-close" onclick="closePicker()" style="color:${T.subtle}">&times;</button>`:''}
+      </div>
+      <div class="picker-sub" style="color:${T.subtle}">Pick your section for core courses, then choose your electives &mdash; you can change these anytime from More.</div>
+      <div class="picker-scroll">
+        <div class="picker-section-label" style="color:${T.subtle}">Your section</div>
+        <div class="picker-sections">`;
+    ['CR-A3','CR-A4'].forEach(sec=>{
+      const active=S.draftSection===sec;
+      html+=`<button class="picker-sec-btn" onclick="selectDraftSection('${sec}')" style="border-color:${active?T.accent:T.border};background:${active?(T.dark?'#1c2b24':'#eef8f2'):T.card};color:${active?T.accent:T.text};">${sec==='CR-A3'?'Section A (CR-A3)':'Section B (CR-A4)'}</button>`;
+    });
+    html+=`</div>
+        <div class="picker-section-label" style="color:${T.subtle};margin-top:10px;">Core &middot; auto-enrolled</div>`;
+    ['SM','DBST'].forEach(code=>{
+      const c=COURSES[code];
+      html+=`<div class="picker-core-item" style="background:${T.card}">
+        <div class="picker-core-dot" style="background:${c.color}"></div>
+        <div>
+          <div class="picker-core-name" style="color:${T.text}">${c.name}</div>
+          <div class="picker-core-prof" style="color:${T.subtle}">${c.prof}</div>
+        </div>
+      </div>`;
+    });
+    html+=`<div class="picker-section-label" style="color:${T.subtle};margin-top:10px;">Electives</div>`;
+    elecCodes.forEach(code=>{
+      const c=COURSES[code];
+      const checked=S.draftElectives.includes(code);
+      html+=`<button class="picker-elec-btn" onclick="toggleDraftElective('${code}')" style="background:${checked?(T.dark?'#222b26':'#eef8f2'):T.card};border-color:${checked?c.color:T.border};width:100%;">
+        <div class="picker-check" style="border-color:${c.color};background:${checked?c.color:'transparent'}">${checked?'&#10003;':''}</div>
+        <div style="flex:1;">
+          <div class="picker-elec-name" style="color:${T.text}">${c.name}</div>
+          <div class="picker-elec-sub" style="color:${T.subtle}">${c.prof} &middot; ${c.credit} credits</div>
+        </div>
+      </button>`;
+    });
+    html+=`</div>
+      <div class="picker-footer" style="background:${T.bg};border-top-color:${T.border};">
+        <button class="picker-done" onclick="confirmPicker()" style="background:${T.accent}">Done &mdash; ${S.draftElectives.length} selected</button>
+      </div>
+    </div>`;
+  }
+
+  html+=`</div>`;
+  document.getElementById('app').innerHTML=html;
+
+  // Re-attach textarea listener
+  const ta=document.getElementById('note-draft');
+  if(ta) ta.addEventListener('input',e=>{ S.noteDraft=e.target.value; });
+}
+
+// ─────────── ACTIONS ───────────
+function escHtml(s){ return String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]); }
+
+function getOverrideStatus(dateIso, code, section){
+  if(!code||!dateIso) return null;
+  return S.overrides[`${dateIso}|${code}|${section}`] || null;
+}
+
+function toggleTheme(){ S.theme=S.theme==='light'?'dark':'light'; localStorage.setItem(THEME_KEY,S.theme); render(); }
+function setView(v){ S.view=v; S.notesOpenCourse=null; render(); }
+function selectDate(d){ S.selectedDate=d; render(); }
+function shiftDay(dir){
+  const dates=getAvailableDates(); if(!dates.length) return;
+  let idx=dates.indexOf(S.selectedDate);
+  if(idx<0){ idx=Math.max(0,dates.findIndex(d=>d>=S.selectedDate)); }
+  const next=dates[Math.max(0,Math.min(dates.length-1,idx+dir))];
+  if(next){ S.selectedDate=next; render(); }
+}
+function goToday(){
+  const dates=getAvailableDates(); const t=iso(new Date());
+  if(!dates.length){ S.selectedDate=t; render(); return; }
+  if(dates.includes(t)){ S.selectedDate=t; render(); return; }
+  const next=dates.find(d=>d>=t);
+  S.selectedDate=next||dates[dates.length-1]; render();
+}
+function refreshData(){ fetchSchedule(); }
+
+function openPicker(){ S.draftElectives=[...S.electives]; S.draftSection=S.section||'CR-A3'; S.pickerOpen=true; render(); }
+function closePicker(){ S.pickerOpen=false; render(); }
+function selectDraftSection(sec){ S.draftSection=sec; render(); }
+function toggleDraftElective(code){
+  const has=S.draftElectives.includes(code);
+  S.draftElectives=has?S.draftElectives.filter(c=>c!==code):[...S.draftElectives,code];
+  render();
+}
+function confirmPicker(){
+  const sec=S.draftSection||'CR-A3';
+  localStorage.setItem(SEC_KEY,sec);
+  localStorage.setItem('pgp-bl07-t3-electives-'+sec,JSON.stringify(S.draftElectives));
+  S.section=sec; S.electives=[...S.draftElectives]; S.pickerOpen=false;
+  loadNotes(); render();
+}
+
+function openCourseNotes(code){ S.notesOpenCourse=code; S.noteDraft=''; render(); }
+function closeCourseNotes(){ S.notesOpenCourse=null; render(); }
+function addNote(){
+  const code=S.notesOpenCourse; if(!code||!S.noteDraft.trim()) return;
+  const list=S.notes[code]||[];
+  const entry={id:Date.now(),text:S.noteDraft.trim(),date:new Date().toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}),sessionNum:list.length+1};
+  saveNotesFor(code,[entry,...list]);
+  S.noteDraft=''; render();
+}
+function removeNote(code,id){
+  id=parseInt(id,10);
+  const list=(S.notes[code]||[]).filter(n=>n.id!==id);
+  saveNotesFor(code,list); render();
+}
+
+// ─────────── INIT ───────────
+(function init(){
+  // Load section + electives from localStorage
+  const savedSec = localStorage.getItem(SEC_KEY);
+  S.section = savedSec || null;
+  S.draftSection = savedSec || 'CR-A3';
+  if(savedSec){
+    try { S.electives = JSON.parse(localStorage.getItem('pgp-bl07-t3-electives-'+savedSec)||'[]'); } catch(e){ S.electives=[]; }
+  }
+  // Show picker on first launch if no section saved
+  S.pickerOpen = !savedSec;
+  loadNotes();
+  render();
+  fetchSchedule();
+  // Tick every 30s to refresh NOW badge
+  setInterval(()=>{ S.tick++; render(); }, 30000);
+})();
+</script>
+</body>
+</html>
