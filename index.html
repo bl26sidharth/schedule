@@ -37,10 +37,11 @@ textarea{font-family:inherit;}
 .date-nav-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
 .date-nav-arrow{border:none;background:none;font-size:22px;padding:4px 8px;}
 .today-btn{border-width:1px;border-style:solid;font-size:12px;font-weight:600;padding:6px 14px;border-radius:20px;}
-.date-strip{display:flex;gap:6px;justify-content:space-between;}
-.day-chip{flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;padding:8px 2px;border-radius:14px;border:none;}
+.date-strip{display:flex;gap:6px;overflow-x:auto;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;scrollbar-width:none;padding-bottom:2px;}
+.date-strip::-webkit-scrollbar{display:none;}
+.day-chip{flex:none;width:44px;display:flex;flex-direction:column;align-items:center;gap:6px;padding:8px 2px;border-radius:14px;border:none;scroll-snap-align:start;}
 .day-chip-dow{font-size:10px;font-weight:600;letter-spacing:.04em;opacity:.7;}
-.day-chip-num{font-size:15px;font-weight:700;width:26px;height:26px;display:flex;align-items:center;justify-content:center;border-radius:50%;}
+.day-chip-num{font-size:15px;font-weight:700;width:30px;height:30px;display:flex;align-items:center;justify-content:center;border-radius:50%;}
 
 /* DATE LABEL */
 .date-label{padding:2px 18px 6px;font-size:15px;font-weight:700;}
@@ -330,10 +331,14 @@ function applyCSV(text){
   const headerIdx = raw.findIndex(r=>(r[0]||'').trim()==='Date');
   if(headerIdx<0) return;
   const rows=[];
+  let lastDate=null;
   for(let i=headerIdx+1;i<raw.length;i++){
-    const r=raw[i]; if(!r[0]) continue;
-    const d=parseDate(r[0]); if(!d) continue;
-    rows.push({dateObj:d, dateIso:iso(d), time:(r[1]||'').trim(), a3:(r[2]||'').trim(), a4:(r[3]||'').trim()});
+    const r=raw[i];
+    const dateStr=(r[0]||'').trim();
+    const timeStr=(r[1]||'').trim();
+    if(dateStr){ const d=parseDate(dateStr); if(d) lastDate=d; }
+    if(!lastDate||!timeStr) continue;
+    rows.push({dateObj:lastDate, dateIso:iso(lastDate), time:timeStr, a3:(r[2]||'').trim(), a4:(r[3]||'').trim()});
   }
   S.rows = rows;
 }
@@ -409,16 +414,11 @@ function buildDateStrip(){
   const dates=getAvailableDates();
   if(!dates.length) return [];
   const todayIso=iso(new Date());
-  let centerIdx=dates.indexOf(S.selectedDate);
-  if(centerIdx<0) centerIdx=Math.max(0,dates.findIndex(d=>d>=S.selectedDate));
-  let start=Math.max(0,centerIdx-3);
-  let end=Math.min(dates.length,start+7);
-  start=Math.max(0,end-7);
-  return dates.slice(start,end).map(dIso=>{
+  const T=theme();
+  return dates.map(dIso=>{
     const d=new Date(dIso);
     const isSel=dIso===S.selectedDate;
     const isToday=dIso===todayIso;
-    const T=theme();
     return {dIso, dow:DOW[d.getDay()], num:d.getDate(), isSel, isToday,
       numBg: isSel?T.accent:(isToday?(T.dark?'#2c2e33':'#e9e7df'):'transparent'),
       fg: isSel?'#ffffff':T.text};
@@ -486,9 +486,9 @@ function render(){
       </div>
       <div class="date-strip">`;
     strip.forEach(d=>{
-      html+=`<button class="day-chip" onclick="selectDate('${d.dIso}')" style="background:${d.isSel?T.accent+'22':'transparent'};color:${d.fg};">
+      html+=`<button class="day-chip ${d.isSel?'selected-chip':''}" onclick="selectDate('${d.dIso}')" style="background:${d.isSel?T.accent+'22':'transparent'};color:${d.fg};">
         <span class="day-chip-dow">${d.dow}</span>
-        <span class="day-chip-num" style="background:${d.numBg};color:${d.isSel?'#fff':d.isToday?T.text:T.text};">${d.num}</span>
+        <span class="day-chip-num" style="background:${d.numBg};color:${d.isSel?'#fff':T.text};">${d.num}</span>
       </button>`;
     });
     html+=`</div></div>
@@ -688,6 +688,12 @@ function render(){
   // Re-attach textarea listener
   const ta=document.getElementById('note-draft');
   if(ta) ta.addEventListener('input',e=>{ S.noteDraft=e.target.value; });
+
+  // Scroll selected date chip into view
+  requestAnimationFrame(()=>{
+    const sel=document.querySelector('.day-chip.selected-chip');
+    if(sel) sel.scrollIntoView({inline:'center',behavior:'smooth',block:'nearest'});
+  });
 }
 
 // ─────────── ACTIONS ───────────
