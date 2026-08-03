@@ -157,6 +157,7 @@ const S = {
   selectedDate: iso(new Date()),
   updates: [],
   updatesFilter: 'ALL',
+  expandedUpdate: null,
   readIds: JSON.parse(localStorage.getItem('pgp-bl07-t3-read-ids')||'{}'),
   deletedIds: JSON.parse(localStorage.getItem('pgp-bl07-t3-deleted-ids')||'{}'),
   rows:         [],
@@ -585,53 +586,57 @@ function render(){
   // ── UPDATES VIEW ──
   else if(S.view==='updates'){
     const courseColors={SM:'#6366f1',DBST:'#0891b2',CV:'#c026d3',AIB:'#16a34a',OS:'#ea580c',PM:'#2563eb',POM:'#7c3aed',CB:'#db2777',SBM:'#ca8a04',GITA:'#059669',MAAS:'#dc2626',ACC:'#0d9488',SCHEDULE:'#0369a1',EXAMS:'#b83232',GENERAL:'#6b7280'};
+    const courseLabels={SM:'Strategic Management',DBST:'Digital Business Strategy & Transformation',CV:'Corporate Valuation',AIB:'AI for Business',OS:'Operations Strategy',PM:'Project Management',POM:'Product Management',CB:'Consumer Behaviour',SBM:'Strategic Brand Management',GITA:'Bhagavad Gita',MAAS:'Marketing Automation & Agentic Systems',ACC:'Advanced Corporate Communication',SCHEDULE:'Schedule Updates',EXAMS:'Exams & Quizzes',GENERAL:'General'};
     const typeColors={'Quiz/Exam':'#b83232',Assignment:'#ca8a04','Pre-read':'#0891b2',Schedule:'#0369a1',Announcement:'#6366f1',General:'#6b7280'};
     const allUpdates=(S.updates||[]).filter(u=>!S.deletedIds[u.id]);
-    // Get unique courses in feed
-    const feedCourses=['ALL',...new Set(allUpdates.map(u=>u.course))];
-    // Apply filter
+    const feedCourses=[...new Set(allUpdates.map(u=>u.course))];
     const filtered = S.updatesFilter==='ALL' ? allUpdates : allUpdates.filter(u=>u.course===S.updatesFilter);
+    const unread = allUpdates.filter(u=>!S.readIds[u.id]).length;
+    const filterLabel = S.updatesFilter==='ALL' ? 'All courses' : (courseLabels[S.updatesFilter]||S.updatesFilter);
     html+=`<div class="view-pad">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:-4px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:-2px;">
         <div class="view-title" style="color:${T.text};">Updates</div>
-        <div style="font-size:11px;color:${T.subtle};font-weight:500;">${allUpdates.filter(u=>!S.readIds[u.id]).length} unread</div>
+        ${unread>0?`<div style="font-size:11px;color:#e11d48;font-weight:700;">${unread} unread</div>`:`<div style="font-size:11px;color:${T.subtle};">All read</div>`}
       </div>
-      <!-- Course filter chips -->
-      <div style="display:flex;gap:6px;overflow-x:auto;padding-bottom:2px;scrollbar-width:none;">`;
+      <!-- Course filter dropdown -->
+      <div style="position:relative;">
+        <select onchange="setUpdatesFilter(this.value)" style="width:100%;padding:9px 36px 9px 12px;border-radius:10px;border:1.5px solid ${T.border};background:${T.card};color:${T.text};font-family:inherit;font-size:13px;font-weight:600;appearance:none;-webkit-appearance:none;cursor:pointer;">
+          <option value="ALL" ${S.updatesFilter==='ALL'?'selected':''}>All courses</option>`;
     feedCourses.forEach(fc=>{
-      const active=S.updatesFilter===fc;
-      const fc_color=fc==='ALL'?T.accent:(courseColors[fc]||'#6b7280');
-      html+=`<button onclick="setUpdatesFilter('${fc}')" style="flex:none;padding:5px 12px;border-radius:20px;border:1.5px solid ${active?fc_color:T.border};background:${active?fc_color+'22':T.card};color:${active?fc_color:T.subtle};font-size:11px;font-weight:600;white-space:nowrap;">${fc}</button>`;
+      const label=courseLabels[fc]||fc;
+      html+=`<option value="${fc}" ${S.updatesFilter===fc?'selected':''}>${label}</option>`;
     });
-    html+=`</div>`;
+    html+=`</select>
+        <span style="position:absolute;right:12px;top:50%;transform:translateY(-50%);pointer-events:none;color:${T.subtle};font-size:12px;">&#9660;</span>
+      </div>`;
     if(!filtered.length){
-      html+=`<div style="text-align:center;padding:40px 0;font-size:14px;color:${T.subtle};">No updates${S.updatesFilter!=='ALL'?' for '+S.updatesFilter:''}.</div>`;
+      html+=`<div style="text-align:center;padding:40px 0;font-size:14px;color:${T.subtle};">No updates${S.updatesFilter!=='ALL'?' for '+filterLabel:''}.</div>`;
     } else {
       filtered.forEach((u,i)=>{
         const c=courseColors[u.course]||'#6b7280';
         const tc=typeColors[u.type]||'#6b7280';
         const isRead=!!S.readIds[u.id];
-        const cardBg=isRead?T.card:(T.dark?'#1e2328':'#f0fdf4');
-        const borderLeft=isRead?'none':`3px solid ${c}`;
+        const isExpanded=S.expandedUpdate===u.id;
+        const cardBg=isRead?T.card:(T.dark?'#1c2228':'#f0fdf4');
+        const borderLeft=isRead?`3px solid ${T.border}`:`3px solid ${c}`;
+        const courseName=courseLabels[u.course]||u.course;
         html+=`<div style="background:${cardBg};border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:8px;animation:slideIn .2s ease ${Math.min(i,10)*0.04}s both;border-left:${borderLeft};">
-          <!-- Top row: tags + date -->
+          <!-- Top row: tags + unread dot + date -->
           <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
-            <span style="background:${c}22;color:${c};font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;letter-spacing:.05em;">${u.course}</span>
-            <span style="background:${tc}22;color:${tc};font-size:10px;font-weight:600;padding:2px 8px;border-radius:20px;">${u.type}</span>
-            ${!isRead?`<span style="width:6px;height:6px;border-radius:50%;background:#e11d48;flex:none;"></span>`:''}
+            <span style="background:${c}22;color:${c};font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;letter-spacing:.04em;">${courseName}</span>
+            <span style="background:${tc}22;color:${tc};font-size:10px;font-weight:600;padding:2px 7px;border-radius:20px;">${u.type}</span>
+            ${!isRead?'<span style="width:6px;height:6px;border-radius:50%;background:#e11d48;flex:none;margin-left:2px;"></span>':''}
             <span style="font-size:11px;color:${T.subtle};margin-left:auto;">${u.date}</span>
           </div>
-          <!-- Subject -->
-          <div style="font-size:14px;font-weight:${isRead?'500':'700'};color:${T.text};line-height:1.3;">${escHtml(u.subject)}</div>
-          <!-- AI Summary -->
-          ${u.snippet?`<div style="font-size:12px;color:${T.subtle};line-height:1.5;font-style:italic;">${escHtml(u.snippet)}</div>`:''}
+          <!-- Subject line — tap to expand summary -->
+          <div onclick="toggleExpand('${u.id}')" style="font-size:14px;font-weight:${isRead?'500':'700'};color:${T.text};line-height:1.35;cursor:pointer;">${escHtml(u.subject)}</div>
+          <!-- AI Summary — shown when expanded -->
+          ${isExpanded&&u.snippet?`<div style="font-size:13px;color:${T.subtle};line-height:1.6;padding:10px 12px;background:${T.dark?'rgba(255,255,255,0.04)':'rgba(0,0,0,0.04)'};border-radius:8px;">${escHtml(u.snippet)}</div>`:''}
           <!-- Actions row -->
-          <div style="display:flex;align-items:center;gap:8px;margin-top:2px;">
-            ${u.threadUrl?`<a href="${u.threadUrl}" target="_blank" style="font-size:12px;font-weight:600;color:${T.accent};text-decoration:none;">Open in Gmail &rarr;</a>`:''}
-            <div style="margin-left:auto;display:flex;gap:6px;">
-              <button onclick="toggleRead('${u.id}')" style="border:1px solid ${T.border};background:none;color:${T.subtle};font-size:11px;font-weight:600;padding:4px 10px;border-radius:8px;">${isRead?'Mark Unread':'Mark Read'}</button>
-              <button onclick="deleteUpdate('${u.id}')" style="border:1px solid #fca5a5;background:none;color:#e11d48;font-size:11px;font-weight:600;padding:4px 10px;border-radius:8px;">Delete</button>
-            </div>
+          <div style="display:flex;align-items:center;gap:6px;margin-top:2px;">
+            <button onclick="toggleExpand('${u.id}')" style="border:1px solid ${T.border};background:none;color:${T.subtle};font-size:11px;font-weight:600;padding:5px 12px;border-radius:8px;">${isExpanded?'Close':'Read'}</button>
+            <button onclick="toggleRead('${u.id}')" style="border:1px solid ${T.border};background:none;color:${T.subtle};font-size:11px;font-weight:600;padding:5px 12px;border-radius:8px;">${isRead?'Mark Unread':'Mark Read'}</button>
+            <button onclick="deleteUpdate('${u.id}')" style="border:1px solid #fca5a5;background:none;color:#e11d48;font-size:11px;font-weight:600;padding:5px 12px;border-radius:8px;margin-left:auto;">Delete</button>
           </div>
         </div>`;
       });
@@ -761,17 +766,7 @@ function toggleTheme(){ S.theme=S.theme==='light'?'dark':'light'; localStorage.s
 function setView(v){
   S.view=v;
   S.notesOpenCourse=null;
-  // Auto-mark all visible updates as read after a short delay
-  if(v==='updates'){
-    setTimeout(()=>{
-      const changed=(S.updates||[]).filter(u=>!S.readIds[u.id]&&!S.deletedIds[u.id]);
-      if(changed.length){
-        changed.forEach(u=>{ S.readIds[u.id]=true; });
-        try{ localStorage.setItem('pgp-bl07-t3-read-ids', JSON.stringify(S.readIds)); }catch(e){}
-        render();
-      }
-    }, 3000); // mark as read after 3 seconds on the tab
-  }
+  S.expandedUpdate=null;
   render();
 }
 function selectDate(d){ S.selectedDate=d; render(); }
@@ -803,6 +798,11 @@ function toggleRead(id){
 function deleteUpdate(id){
   S.deletedIds[id]=true;
   try{ localStorage.setItem('pgp-bl07-t3-deleted-ids', JSON.stringify(S.deletedIds)); }catch(e){}
+  render();
+}
+
+function toggleExpand(id){
+  S.expandedUpdate = S.expandedUpdate===id ? null : id;
   render();
 }
 
