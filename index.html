@@ -618,27 +618,28 @@ function render(){
         const isRead=!!S.readIds[u.id];
         const isExpanded=S.expandedUpdate===i;
         const cardBg=isRead?T.card:(T.dark?'#1c2228':'#f0fdf4');
-        const borderLeft=isRead?`3px solid ${T.border}`:`3px solid ${c}`;
+        const borderLeft=isRead?'3px solid '+T.border:'3px solid '+c;
         const courseName=courseLabels[u.course]||u.course;
-        html+=`<div style="background:${cardBg};border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:8px;animation:slideIn .2s ease ${Math.min(i,10)*0.04}s both;border-left:${borderLeft};">
-          <!-- Top row: tags + unread dot + date -->
-          <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
-            <span style="background:${c}22;color:${c};font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;letter-spacing:.04em;">${courseName}</span>
-            <span style="background:${tc}22;color:${tc};font-size:10px;font-weight:600;padding:2px 7px;border-radius:20px;">${u.type}</span>
-            ${!isRead?'<span style="width:6px;height:6px;border-radius:50%;background:#e11d48;flex:none;margin-left:2px;"></span>':''}
-            <span style="font-size:11px;color:${T.subtle};margin-left:auto;">${u.date}</span>
-          </div>
-          <!-- Subject line — tap to expand summary -->
-          <div onclick="toggleExpand(${i})" style="font-size:14px;font-weight:${isRead?'500':'700'};color:${T.text};line-height:1.35;cursor:pointer;">${escHtml(u.subject)}</div>
-          <!-- AI Summary — shown when expanded -->
-          ${isExpanded&&u.snippet?`<div style="font-size:13px;color:${T.subtle};line-height:1.6;padding:10px 12px;background:${T.dark?'rgba(255,255,255,0.04)':'rgba(0,0,0,0.04)'};border-radius:8px;">${escHtml(u.snippet)}</div>`:''}
-          <!-- Actions row -->
-          <div style="display:flex;align-items:center;gap:6px;margin-top:2px;">
-            <button onclick="toggleExpand(${i})" style="border:1px solid ${T.border};background:none;color:${T.subtle};font-size:11px;font-weight:600;padding:5px 12px;border-radius:8px;">${isExpanded?'Close':'Read'}</button>
-            <button onclick="toggleRead('${u.id}')" style="border:1px solid ${T.border};background:none;color:${T.subtle};font-size:11px;font-weight:600;padding:5px 12px;border-radius:8px;">${isRead?'Mark Unread':'Mark Read'}</button>
-            <button onclick="deleteUpdate('${u.id}')" style="border:1px solid #fca5a5;background:none;color:#e11d48;font-size:11px;font-weight:600;padding:5px 12px;border-radius:8px;margin-left:auto;">Delete</button>
-          </div>
-        </div>`;
+        // Encode id safely for data attributes
+        const safeId=encodeURIComponent(u.id);
+        html+='<div style="background:'+cardBg+';border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:8px;border-left:'+borderLeft+';">'
+          +'<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">'
+            +'<span style="background:'+c+'22;color:'+c+';font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;letter-spacing:.04em;">'+courseName+'</span>'
+            +'<span style="background:'+tc+'22;color:'+tc+';font-size:10px;font-weight:600;padding:2px 7px;border-radius:20px;">'+u.type+'</span>'
+            +(!isRead?'<span style="width:6px;height:6px;border-radius:50%;background:#e11d48;flex:none;margin-left:2px;"></span>':'')
+            +'<span style="font-size:11px;color:'+T.subtle+';margin-left:auto;">'+u.date+'</span>'
+          +'</div>'
+          +'<div data-expand="'+i+'" style="font-size:14px;font-weight:'+(isRead?'500':'700')+';color:'+T.text+';line-height:1.35;cursor:pointer;">'+escHtml(u.subject)+'</div>'
+          +(isExpanded&&u.snippet
+            ?'<div id="summary-'+i+'" style="font-size:13px;color:'+T.subtle+';line-height:1.6;padding:10px 12px;background:'+(T.dark?'rgba(255,255,255,0.04)':'rgba(0,0,0,0.04)')+';border-radius:8px;">'+escHtml(u.snippet)+'</div>'
+            :'<div id="summary-'+i+'" style="display:none;"></div>'
+          )
+          +'<div style="display:flex;align-items:center;gap:6px;margin-top:2px;">'
+            +'<button data-expand="'+i+'" style="border:1px solid '+T.border+';background:none;color:'+T.subtle+';font-size:11px;font-weight:600;padding:5px 12px;border-radius:8px;">'+(isExpanded?'Close':'Read')+'</button>'
+            +'<button data-readid="'+safeId+'" style="border:1px solid '+T.border+';background:none;color:'+T.subtle+';font-size:11px;font-weight:600;padding:5px 12px;border-radius:8px;">'+(isRead?'Mark Unread':'Mark Read')+'</button>'
+            +'<button data-delid="'+safeId+'" style="border:1px solid #fca5a5;background:none;color:#e11d48;font-size:11px;font-weight:600;padding:5px 12px;border-radius:8px;margin-left:auto;">Delete</button>'
+          +'</div>'
+        +'</div>';
       });
     }
     html+=`</div>`;
@@ -805,6 +806,24 @@ function toggleExpand(idx){
   S.expandedUpdate = S.expandedUpdate===idx ? null : idx;
   render();
 }
+
+// Event delegation for update cards — handles data-expand, data-readid, data-delid
+document.addEventListener('click', function(e){
+  const btn = e.target.closest('[data-expand],[data-readid],[data-delid]');
+  if(!btn) return;
+  if(btn.hasAttribute('data-expand')){
+    e.stopPropagation();
+    toggleExpand(parseInt(btn.getAttribute('data-expand'),10));
+  } else if(btn.hasAttribute('data-readid')){
+    e.stopPropagation();
+    const id = decodeURIComponent(btn.getAttribute('data-readid'));
+    toggleRead(id);
+  } else if(btn.hasAttribute('data-delid')){
+    e.stopPropagation();
+    const id = decodeURIComponent(btn.getAttribute('data-delid'));
+    deleteUpdate(id);
+  }
+});
 
 function openPicker(){ S.draftElectives=[...S.electives]; S.draftSection=S.section||'CR-A3'; S.pickerOpen=true; render(); }
 function closePicker(){ S.pickerOpen=false; render(); }
