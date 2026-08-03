@@ -154,6 +154,7 @@ const PROXIES = [
   u => 'https://corsproxy.io/?' + encodeURIComponent(u),
   u => 'https://thingproxy.freeboard.io/fetch/' + u,
 ];
+const UPDATES_CSV    = 'PASTE_UPDATES_CSV_URL_HERE';
 const CACHE_KEY  = 'pgp-bl07-t3-csv-cache';
 const OVR_CACHE_KEY = 'pgp-bl07-t3-ovr-cache';
 const THEME_KEY  = 'pgp-bl07-theme';
@@ -169,6 +170,10 @@ const S = {
   pickerOpen:   false,
   view:         'timetable',
   selectedDate: iso(new Date()),
+  updates: [],
+  updatesFilter: 'ALL',
+  readIds: JSON.parse(localStorage.getItem('pgp-bl07-t3-read-ids')||'{}'),
+  deletedIds: JSON.parse(localStorage.getItem('pgp-bl07-t3-deleted-ids')||'{}'),
   rows:         [],
   loaded:       false,
   syncedAt:     null,
@@ -287,6 +292,38 @@ function parseOverrides(text){
   return map;
 }
 
+function parseUpdates(text){
+  if(!text||!text.includes(',')) return [];
+  const rows=parseCSV(text);
+  let hi=-1,cols={};
+  for(let i=0;i<Math.min(rows.length,3);i++){
+    const r=(rows[i]||[]).map(c=>(c||'').trim().toLowerCase());
+    if(r.includes('id')&&r.includes('course')){
+      hi=i;
+      ['id','datetime','date','course','type','subject','snippet','threadurl'].forEach(k=>{
+        const idx=r.indexOf(k); if(idx>=0) cols[k]=idx;
+      });
+      break;
+    }
+  }
+  if(hi===-1) return [];
+  const updates=[];
+  for(let i=hi+1;i<rows.length;i++){
+    const r=rows[i]; if(!r||!r.length) continue;
+    const get=k=>cols[k]!==undefined?(r[cols[k]]||'').trim():'';
+    const course=get('course'); if(!course) continue;
+    updates.push({
+      id:get('id'), datetime:get('datetime'), date:get('date'),
+      course, type:get('type')||'General',
+      subject:get('subject'), snippet:get('snippet'),
+      threadUrl:get('threadurl'),
+    });
+  }
+  // Sort newest first
+  updates.sort((a,b)=>b.datetime.localeCompare(a.datetime));
+  return updates;
+}
+
 async function fetchWithProxies(url){
   try { const r=await fetch(url+'&_t='+Date.now(),{cache:'no-store'}); if(r.ok){const t=await r.text(); if(t&&t.includes(',')) return t;} } catch(e){}
   for(const pf of PROXIES){
@@ -298,9 +335,10 @@ async function fetchWithProxies(url){
 // ─────────── CSV FETCH ───────────
 async function fetchSchedule(){
   // Fetch schedule + overrides in parallel
-  const [schedText, ovrText] = await Promise.all([
+  const [schedText, ovrText, updText] = await Promise.all([
     fetchWithProxies(SCHEDULE_CSV),
     OVERRIDES_CSV !== 'PASTE_T3_OVERRIDES_CSV_URL_HERE' ? fetchWithProxies(OVERRIDES_CSV) : Promise.resolve(null),
+    UPDATES_CSV !== 'PASTE_UPDATES_CSV_URL_HERE' ? fetchWithProxies(UPDATES_CSV) : Promise.resolve(null),
   ]);
 
   if(schedText){
@@ -320,6 +358,13 @@ async function fetchSchedule(){
     S.overrides = map;
   } else {
     try { S.overrides = JSON.parse(localStorage.getItem(OVR_CACHE_KEY)||'{}'); } catch(e){ S.overrides={}; }
+  }
+
+  if(updText){
+    S.updates = parseUpdates(updText);
+    try { localStorage.setItem('pgp-bl07-t3-upd-cache', JSON.stringify(S.updates)); } catch(e){}
+  } else {
+    try { S.updates = JSON.parse(localStorage.getItem('pgp-bl07-t3-upd-cache')||'[]'); } catch(e){ S.updates=[]; }
   }
 
   S.loaded = true;
@@ -433,6 +478,7 @@ function svgIcon(key, color){
     notes:`<svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M5 4h11l3 3v13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1z" stroke="${color}" stroke-width="1.8"/><path d="M8 10h8M8 14h5" ${s}/></svg>`,
     holidays:`<svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M5 4v16M5 4h11l-2 4 2 4H5" stroke="${color}" stroke-width="1.8" stroke-linejoin="round"/></svg>`,
     exams:`<svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M6 3h9l4 4v14a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z" stroke="${color}" stroke-width="1.8" stroke-linejoin="round"/><path d="M8 12l2.5 2.5L16 9" ${s} stroke-linejoin="round"/></svg>`,
+    updates:`<svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 0 1-3.46 0" stroke="${color}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
     more:`<svg width="20" height="20" viewBox="0 0 24 24" fill="none"><circle cx="5" cy="12" r="1.6" fill="${color}"/><circle cx="12" cy="12" r="1.6" fill="${color}"/><circle cx="19" cy="12" r="1.6" fill="${color}"/></svg>`,
     sun:`<svg width="18" height="18" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="5" stroke="${color}" stroke-width="1.8"/><path d="M12 1v3M12 20v3M23 12h-3M4 12H1M19.07 4.93l-2.12 2.12M7.05 16.95l-2.12 2.12M19.07 19.07l-2.12-2.12M7.05 7.05 4.93 4.93" stroke="${color}" stroke-width="1.8" stroke-linecap="round"/></svg>`,
     moon:`<svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M21 12.6A9 9 0 1 1 11.4 3 7 7 0 0 0 21 12.6z" stroke="${color}" stroke-width="1.8" stroke-linejoin="round"/></svg>`,
@@ -527,46 +573,6 @@ function render(){
     html+=`</div>`;
   }
 
-  // ── NOTES VIEW ──
-  else if(S.view==='notes'){
-    html+=`<div class="view-pad">`;
-    if(!S.notesOpenCourse){
-      html+=`<div class="view-title" style="color:${T.text}">Session notes</div>`;
-      notesCourses.forEach(code=>{
-        const course=COURSES[code];
-        const count=(S.notes[code]||[]).length;
-        html+=`<button class="notes-course-btn" onclick="openCourseNotes('${code}')" style="background:${T.card};width:100%;">
-          <div class="notes-course-dot" style="background:${course.color}"></div>
-          <div style="flex:1;min-width:0;">
-            <div class="notes-course-name" style="color:${T.text}">${course.name}</div>
-            <div class="notes-course-count" style="color:${T.subtle}">${count} note${count===1?'':'s'}</div>
-          </div>
-          <span style="color:${T.subtle}">&#8250;</span>
-        </button>`;
-      });
-    } else {
-      const code=S.notesOpenCourse;
-      const course=COURSES[code];
-      const entries=S.notes[code]||[];
-      html+=`<div>
-        <button class="notes-back" onclick="closeCourseNotes()" style="color:${T.accent}">&#8249; Back</button>
-      </div>
-      <div class="notes-course-title" style="color:${T.text}">${course.name}</div>
-      <textarea class="notes-textarea" id="note-draft" placeholder="Write a note for the next session..." style="border-color:${T.border};background:${T.card};color:${T.text};">${escHtml(S.noteDraft)}</textarea>
-      <button class="notes-save-btn" onclick="addNote()" style="background:${T.accent}">Save note</button>`;
-      entries.forEach(n=>{
-        html+=`<div class="note-entry" style="background:${T.card}">
-          <div class="note-entry-head">
-            <span class="note-entry-meta" style="color:${T.subtle}">Session ${n.sessionNum} &middot; ${n.date}</span>
-            <button class="note-del-btn" onclick="removeNote('${code}',${n.id})" style="color:${T.subtle}">Delete</button>
-          </div>
-          <div class="note-entry-text" style="color:${T.text}">${escHtml(n.text)}</div>
-        </div>`;
-      });
-    }
-    html+=`</div>`;
-  }
-
   // ── HOLIDAYS VIEW ──
   else if(S.view==='holidays'){
     html+=`<div class="view-pad">
@@ -589,6 +595,63 @@ function render(){
         <div class="exam-note" style="color:${T.subtle}">Detailed exam schedule will appear here once the end-term timetable is published.</div>
       </div>
     </div>`;
+  }
+
+  // ── UPDATES VIEW ──
+  else if(S.view==='updates'){
+    const courseColors={SM:'#6366f1',DBST:'#0891b2',CV:'#c026d3',AIB:'#16a34a',OS:'#ea580c',PM:'#2563eb',POM:'#7c3aed',CB:'#db2777',SBM:'#ca8a04',GITA:'#059669',MAAS:'#dc2626',ACC:'#0d9488',SCHEDULE:'#0369a1',EXAMS:'#b83232',GENERAL:'#6b7280'};
+    const typeColors={'Quiz/Exam':'#b83232',Assignment:'#ca8a04','Pre-read':'#0891b2',Schedule:'#0369a1',Announcement:'#6366f1',General:'#6b7280'};
+    const allUpdates=(S.updates||[]).filter(u=>!S.deletedIds[u.id]);
+    // Get unique courses in feed
+    const feedCourses=['ALL',...new Set(allUpdates.map(u=>u.course))];
+    // Apply filter
+    const filtered = S.updatesFilter==='ALL' ? allUpdates : allUpdates.filter(u=>u.course===S.updatesFilter);
+    html+=`<div style="padding:4px 18px 100px;display:flex;flex-direction:column;gap:10px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;">
+        <div style="font-size:15px;font-weight:700;color:${T.text};">Updates</div>
+        <div style="font-size:11px;color:${T.subtle};">${allUpdates.filter(u=>!S.readIds[u.id]).length} unread</div>
+      </div>
+      <!-- Course filter chips -->
+      <div style="display:flex;gap:6px;overflow-x:auto;padding-bottom:2px;scrollbar-width:none;">`;
+    feedCourses.forEach(fc=>{
+      const active=S.updatesFilter===fc;
+      const fc_color=fc==='ALL'?T.accent:(courseColors[fc]||'#6b7280');
+      html+=`<button onclick="setUpdatesFilter('${fc}')" style="flex:none;padding:5px 12px;border-radius:20px;border:1.5px solid ${active?fc_color:T.border};background:${active?fc_color+'22':T.card};color:${active?fc_color:T.subtle};font-size:11px;font-weight:600;white-space:nowrap;">${fc}</button>`;
+    });
+    html+=`</div>`;
+    if(!filtered.length){
+      html+=`<div style="text-align:center;padding:40px 0;font-size:14px;color:${T.subtle};">No updates${S.updatesFilter!=='ALL'?' for '+S.updatesFilter:''}.</div>`;
+    } else {
+      filtered.forEach((u,i)=>{
+        const c=courseColors[u.course]||'#6b7280';
+        const tc=typeColors[u.type]||'#6b7280';
+        const isRead=!!S.readIds[u.id];
+        const cardBg=isRead?T.card:(T.dark?'#1e2328':'#f0fdf4');
+        const borderLeft=isRead?'none':`3px solid ${c}`;
+        html+=`<div style="background:${cardBg};border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:8px;animation:slideIn .2s ease ${Math.min(i,10)*0.04}s both;border-left:${borderLeft};">
+          <!-- Top row: tags + date -->
+          <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+            <span style="background:${c}22;color:${c};font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;letter-spacing:.05em;">${u.course}</span>
+            <span style="background:${tc}22;color:${tc};font-size:10px;font-weight:600;padding:2px 8px;border-radius:20px;">${u.type}</span>
+            ${!isRead?`<span style="width:6px;height:6px;border-radius:50%;background:#e11d48;flex:none;"></span>`:''}
+            <span style="font-size:11px;color:${T.subtle};margin-left:auto;">${u.date}</span>
+          </div>
+          <!-- Subject -->
+          <div style="font-size:14px;font-weight:${isRead?'500':'700'};color:${T.text};line-height:1.3;">${escHtml(u.subject)}</div>
+          <!-- AI Summary -->
+          ${u.snippet?`<div style="font-size:12px;color:${T.subtle};line-height:1.5;font-style:italic;">${escHtml(u.snippet)}</div>`:''}
+          <!-- Actions row -->
+          <div style="display:flex;align-items:center;gap:8px;margin-top:2px;">
+            ${u.threadUrl?`<a href="${u.threadUrl}" target="_blank" style="font-size:12px;font-weight:600;color:${T.accent};text-decoration:none;">Open in Gmail &rarr;</a>`:''}
+            <div style="margin-left:auto;display:flex;gap:6px;">
+              <button onclick="toggleRead('${u.id}')" style="border:1px solid ${T.border};background:none;color:${T.subtle};font-size:11px;font-weight:600;padding:4px 10px;border-radius:8px;">${isRead?'Mark Unread':'Mark Read'}</button>
+              <button onclick="deleteUpdate('${u.id}')" style="border:1px solid #fca5a5;background:none;color:#e11d48;font-size:11px;font-weight:600;padding:4px 10px;border-radius:8px;">Delete</button>
+            </div>
+          </div>
+        </div>`;
+      });
+    }
+    html+=`</div>`;
   }
 
   // ── MORE VIEW ──
@@ -619,17 +682,22 @@ function render(){
   // ── BOTTOM NAV ──
   const navDefs=[
     {key:'timetable',label:'Timetable'},
-    {key:'notes',label:'Notes'},
     {key:'holidays',label:'Holidays'},
     {key:'exams',label:'Exams'},
+    {key:'updates',label:'Updates'},
     {key:'more',label:'More'},
   ];
   html+=`<div class="nav" style="background:${T.nav};border-top-color:${T.border};">`;
+  const unreadCount = (S.updates||[]).filter(u=>!S.readIds[u.id]&&!S.deletedIds[u.id]).length;
   navDefs.forEach(n=>{
     const active=S.view===n.key;
     const c=active?T.accent:T.subtle;
-    html+=`<button class="nav-btn" onclick="setView('${n.key}')">
+    const badge = n.key==='updates'&&unreadCount>0
+      ? `<span style="position:absolute;top:4px;right:50%;transform:translateX(14px);background:#e11d48;color:#fff;font-size:9px;font-weight:700;min-width:16px;height:16px;border-radius:8px;display:flex;align-items:center;justify-content:center;padding:0 4px;box-shadow:0 0 0 2px ${T.nav};">${unreadCount>99?'99+':unreadCount}</span>`
+      : '';
+    html+=`<button class="nav-btn" onclick="setView('${n.key}')" style="position:relative;">
       ${svgIcon(n.key,c)}
+      ${badge}
       <span class="nav-label" style="color:${c}">${n.label}</span>
     </button>`;
   });
@@ -705,7 +773,22 @@ function getOverrideStatus(dateIso, code, section){
 }
 
 function toggleTheme(){ S.theme=S.theme==='light'?'dark':'light'; localStorage.setItem(THEME_KEY,S.theme); render(); }
-function setView(v){ S.view=v; S.notesOpenCourse=null; render(); }
+function setView(v){
+  S.view=v;
+  S.notesOpenCourse=null;
+  // Auto-mark all visible updates as read after a short delay
+  if(v==='updates'){
+    setTimeout(()=>{
+      const changed=(S.updates||[]).filter(u=>!S.readIds[u.id]&&!S.deletedIds[u.id]);
+      if(changed.length){
+        changed.forEach(u=>{ S.readIds[u.id]=true; });
+        try{ localStorage.setItem('pgp-bl07-t3-read-ids', JSON.stringify(S.readIds)); }catch(e){}
+        render();
+      }
+    }, 3000); // mark as read after 3 seconds on the tab
+  }
+  render();
+}
 function selectDate(d){ S.selectedDate=d; render(); }
 function shiftDay(dir){
   const dates=getAvailableDates(); if(!dates.length) return;
@@ -722,6 +805,21 @@ function goToday(){
   S.selectedDate=next||dates[dates.length-1]; render();
 }
 function refreshData(){ fetchSchedule(); }
+
+function setUpdatesFilter(f){ S.updatesFilter=f; render(); }
+
+function toggleRead(id){
+  if(S.readIds[id]){ delete S.readIds[id]; }
+  else { S.readIds[id]=true; }
+  try{ localStorage.setItem('pgp-bl07-t3-read-ids', JSON.stringify(S.readIds)); }catch(e){}
+  render();
+}
+
+function deleteUpdate(id){
+  S.deletedIds[id]=true;
+  try{ localStorage.setItem('pgp-bl07-t3-deleted-ids', JSON.stringify(S.deletedIds)); }catch(e){}
+  render();
+}
 
 function openPicker(){ S.draftElectives=[...S.electives]; S.draftSection=S.section||'CR-A3'; S.pickerOpen=true; render(); }
 function closePicker(){ S.pickerOpen=false; render(); }
