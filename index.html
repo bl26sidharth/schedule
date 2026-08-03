@@ -286,7 +286,7 @@ function parseUpdates(text){
     const r=(rows[i]||[]).map(c=>(c||'').trim().toLowerCase());
     if(r.includes('id')&&r.includes('course')){
       hi=i;
-      ['id','datetime','date','course','type','subject','snippet','threadurl'].forEach(k=>{
+      ['id','datetime','date','course','type','subject','snippet','summary','threadurl'].forEach(k=>{
         const idx=r.indexOf(k); if(idx>=0) cols[k]=idx;
       });
       break;
@@ -301,7 +301,7 @@ function parseUpdates(text){
     updates.push({
       id:get('id'), datetime:get('datetime'), date:get('date'),
       course, type:get('type')||'General',
-      subject:get('subject'), snippet:get('snippet'),
+      subject:get('subject'), snippet:get('snippet')||get('summary'),
       threadUrl:get('threadurl'),
     });
   }
@@ -620,8 +620,6 @@ function render(){
         const cardBg=isRead?T.card:(T.dark?'#1c2228':'#f0fdf4');
         const borderLeft=isRead?'3px solid '+T.border:'3px solid '+c;
         const courseName=courseLabels[u.course]||u.course;
-        // Encode id safely for data attributes
-        const safeId=encodeURIComponent(u.id);
         html+='<div style="background:'+cardBg+';border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:8px;border-left:'+borderLeft+';">'
           +'<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">'
             +'<span style="background:'+c+'22;color:'+c+';font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;letter-spacing:.04em;">'+courseName+'</span>'
@@ -629,18 +627,25 @@ function render(){
             +(!isRead?'<span style="width:6px;height:6px;border-radius:50%;background:#e11d48;flex:none;margin-left:2px;"></span>':'')
             +'<span style="font-size:11px;color:'+T.subtle+';margin-left:auto;">'+u.date+'</span>'
           +'</div>'
-          +'<div data-expand="'+i+'" style="font-size:14px;font-weight:'+(isRead?'500':'700')+';color:'+T.text+';line-height:1.35;cursor:pointer;">'+escHtml(u.subject)+'</div>'
-          +(isExpanded&&u.snippet
-            ?'<div id="summary-'+i+'" style="font-size:13px;color:'+T.subtle+';line-height:1.6;padding:10px 12px;background:'+(T.dark?'rgba(255,255,255,0.04)':'rgba(0,0,0,0.04)')+';border-radius:8px;">'+escHtml(u.snippet)+'</div>'
-            :'<div id="summary-'+i+'" style="display:none;"></div>'
+          +'<div onclick="window._upd.expand('+i+')" style="font-size:14px;font-weight:'+(isRead?'500':'700')+';color:'+T.text+';line-height:1.35;cursor:pointer;">'+escHtml(u.subject)+'</div>'
+          +(isExpanded
+            ?'<div id="summary-'+i+'" style="font-size:13px;color:'+T.subtle+';line-height:1.6;padding:10px 12px;background:'+(T.dark?'rgba(255,255,255,0.04)':'rgba(0,0,0,0.04)')+';border-radius:8px;">'+(u.snippet?escHtml(u.snippet):'No summary available.')+'</div>'
+            :''
           )
           +'<div style="display:flex;align-items:center;gap:6px;margin-top:2px;">'
-            +'<button data-expand="'+i+'" style="border:1px solid '+T.border+';background:none;color:'+T.subtle+';font-size:11px;font-weight:600;padding:5px 12px;border-radius:8px;">'+(isExpanded?'Close':'Read')+'</button>'
-            +'<button data-readid="'+safeId+'" style="border:1px solid '+T.border+';background:none;color:'+T.subtle+';font-size:11px;font-weight:600;padding:5px 12px;border-radius:8px;">'+(isRead?'Mark Unread':'Mark Read')+'</button>'
-            +'<button data-delid="'+safeId+'" style="border:1px solid #fca5a5;background:none;color:#e11d48;font-size:11px;font-weight:600;padding:5px 12px;border-radius:8px;margin-left:auto;">Delete</button>'
+            +'<button onclick="window._upd.expand('+i+')" style="border:1px solid '+T.border+';background:none;color:'+T.subtle+';font-size:11px;font-weight:600;padding:5px 12px;border-radius:8px;">'+(isExpanded?'Close':'Read')+'</button>'
+            +'<button onclick="window._upd.read('+i+')" style="border:1px solid '+T.border+';background:none;color:'+T.subtle+';font-size:11px;font-weight:600;padding:5px 12px;border-radius:8px;">'+(isRead?'Mark Unread':'Mark Read')+'</button>'
+            +'<button onclick="window._upd.del('+i+')" style="border:1px solid #fca5a5;background:none;color:#e11d48;font-size:11px;font-weight:600;padding:5px 12px;border-radius:8px;margin-left:auto;">Delete</button>'
           +'</div>'
         +'</div>';
       });
+      // Register handlers indexed to filtered array
+      const _filtered = filtered;
+      window._upd = {
+        expand: function(i){ toggleExpand(i); },
+        read:   function(i){ toggleRead(_filtered[i].id); },
+        del:    function(i){ deleteUpdate(_filtered[i].id); },
+      };
     }
     html+=`</div>`;
   }
@@ -807,23 +812,7 @@ function toggleExpand(idx){
   render();
 }
 
-// Event delegation for update cards — handles data-expand, data-readid, data-delid
-document.addEventListener('click', function(e){
-  const btn = e.target.closest('[data-expand],[data-readid],[data-delid]');
-  if(!btn) return;
-  if(btn.hasAttribute('data-expand')){
-    e.stopPropagation();
-    toggleExpand(parseInt(btn.getAttribute('data-expand'),10));
-  } else if(btn.hasAttribute('data-readid')){
-    e.stopPropagation();
-    const id = decodeURIComponent(btn.getAttribute('data-readid'));
-    toggleRead(id);
-  } else if(btn.hasAttribute('data-delid')){
-    e.stopPropagation();
-    const id = decodeURIComponent(btn.getAttribute('data-delid'));
-    deleteUpdate(id);
-  }
-});
+
 
 function openPicker(){ S.draftElectives=[...S.electives]; S.draftSection=S.section||'CR-A3'; S.pickerOpen=true; render(); }
 function closePicker(){ S.pickerOpen=false; render(); }
