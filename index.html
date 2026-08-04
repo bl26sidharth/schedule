@@ -128,7 +128,6 @@ const COURSES = {
   CB:   { name:'Consumer Behaviour',     prof:'Prof. M Geetha',              color:'#db2777', core:false, credit:3 },
   SBM:  { name:'Strategic Brand Management', prof:'Prof. Gladys S',          color:'#ca8a04', core:false, credit:3 },
   GITA: { name:'Navigating Work & Workplaces: Bhagavad Gita', prof:'Prof. Surya Prakash Pati', color:'#059669', core:false, credit:2 },
-  NWLB: { name:'Navigating Work & Workplaces: Bhagavad Gita', prof:'Prof. Surya Prakash Pati', color:'#059669', core:false, credit:2 },
   MAAS: { name:'Marketing Automation & Agentic Systems', prof:'Prof. Dharun Kasilingam & Prof. Omkumar Krishnan', color:'#dc2626', core:false, credit:2 },
   ACC:  { name:'Advanced Corporate Communication', prof:'Prof. Deepa Sethi',  color:'#0d9488', core:false, credit:2 },
 };
@@ -407,9 +406,14 @@ function buildAgenda(dateIso){
         const base=codeBase(val);
         const course=COURSES[base];
         if(course){
-          const suffix=val.includes('-')?' (Batch '+val.split('-')[1]+')':'';
-          const status=S.overrides[`${dateIso}|${base}|${section}`]||null;
-          items.push({start:fmt12(start),end:fmt12(end),name:course.name+suffix,room:section,prof:course.prof,color:course.color,isNow,isLunch:false,status});
+          // If this slot is an elective (not core), only show if student picked it
+          if(!course.core && !S.electives.includes(base)) {
+            // skip — student didn't pick this elective
+          } else {
+            const suffix=val.includes('-')&&course.core?' (Batch '+val.split('-')[1]+')':'';
+            const status=S.overrides[`${dateIso}|${base}|${section}`]||null;
+            items.push({start:fmt12(start),end:fmt12(end),name:course.name+suffix,room:section,prof:course.prof,color:course.color,isNow,isLunch:false,status});
+          }
         }
       }
     } else {
