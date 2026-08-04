@@ -419,7 +419,19 @@ function buildAgenda(dateIso){
         const course=COURSES[base];
         if(course&&!course.core&&S.electives.includes(base)){
           const status=S.overrides[`${dateIso}|${base}|${slot.sec}`]||null;
-          items.push({start:fmt12(start),end:fmt12(end),name:course.name,room:slot.room,prof:course.prof,color:course.color,isNow,isLunch:false,status});
+          // Extract venue from cell value — anything after the first dash that isn't a section suffix
+          // e.g. "NWLB - MDC - 4TH FLOOR" → "MDC - 4TH FLOOR"
+          // e.g. "CV-A" → default to slot room
+          let venue = slot.room;
+          const rawParts = slot.val.trim().split('-');
+          if(rawParts.length > 1){
+            const afterCode = rawParts.slice(1).join('-').trim();
+            // If it's just a section letter A/B, use default room; else it's a venue
+            if(afterCode.length > 1 && !/^[AB]$/i.test(afterCode.trim())){
+              venue = afterCode.trim();
+            }
+          }
+          items.push({start:fmt12(start),end:fmt12(end),name:course.name,room:venue,prof:course.prof,color:course.color,isNow,isLunch:false,status});
         }
       });
     }
