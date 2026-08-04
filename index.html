@@ -128,6 +128,7 @@ const COURSES = {
   CB:   { name:'Consumer Behaviour',     prof:'Prof. M Geetha',              color:'#db2777', core:false, credit:3 },
   SBM:  { name:'Strategic Brand Management', prof:'Prof. Gladys S',          color:'#ca8a04', core:false, credit:3 },
   GITA: { name:'Navigating Work & Workplaces: Bhagavad Gita', prof:'Prof. Surya Prakash Pati', color:'#059669', core:false, credit:2 },
+  NWLB: { name:'Navigating Work & Workplaces: Bhagavad Gita', prof:'Prof. Surya Prakash Pati', color:'#059669', core:false, credit:2 },
   MAAS: { name:'Marketing Automation & Agentic Systems', prof:'Prof. Dharun Kasilingam & Prof. Omkumar Krishnan', color:'#dc2626', core:false, credit:2 },
   ACC:  { name:'Advanced Corporate Communication', prof:'Prof. Deepa Sethi',  color:'#0d9488', core:false, credit:2 },
 };
@@ -206,7 +207,12 @@ function fmt12(t){
   return h+':'+String(t.m).padStart(2,'0')+' '+ap;
 }
 
-function codeBase(v){ return v.split('-')[0].trim().toUpperCase(); }
+function codeBase(v){
+  const b = v.split('-')[0].trim().toUpperCase();
+  // NWLB is the admin's code for the Bhagavad Gita course (GITA)
+  if(b==='NWLB') return 'GITA';
+  return b;
+}
 
 function getAvailableDates(){
   return [...new Set(S.rows.map(r=>r.dateIso))].sort();
