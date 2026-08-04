@@ -386,8 +386,15 @@ function buildAgenda(dateIso){
   const section = S.section || 'CR-A3';
   dayRows.forEach(r=>{
     const timeParts=r.time.split('-');
-    const start=parseTimePart(timeParts[0]||'0');
-    const end=parseTimePart(timeParts[1]||'0');
+    let start=parseTimePart(timeParts[0]||'0');
+    let end=parseTimePart(timeParts[1]||'0');
+    // NWLB/GITA sessions are always 6:30 AM – 9:15 AM regardless of CSV time
+    const _a3base=r.a3?codeBase(r.a3):'';
+    const _a4base=r.a4?codeBase(r.a4):'';
+    if(_a3base==='GITA'||_a4base==='GITA'){
+      start={h:6,m:30};
+      end={h:9,m:15};
+    }
     const now=new Date();
     const nowMin=now.getHours()*60+now.getMinutes();
     const isToday=dateIso===iso(now);
